@@ -89,7 +89,7 @@ tr.edit td{background:var(--pan)}
     </div>
     <div id="vLogin" hidden><button class="btn" id="loginBtn" type="button">Se connecter avec Microsoft</button></div>
     <div id="vPick" hidden style="display:grid;gap:10px;width:100%">
-      <form id="searchF" style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="q" value="Budget_2026_Analyse" aria-label="Nom du fichier" style="flex:1 1 220px"><button class="btn ghost" type="submit">Chercher</button></form>
+      <form id="searchF" style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="q" value="Budget_2026_Analyse" aria-label="Nom du fichier" style="flex:1 1 220px"><button class="btn ghost" type="submit">Chercher</button><button class="btn ghost" type="button" id="browseBtn">Parcourir mes dossiers</button></form>
       <div id="results" style="display:grid;gap:8px;width:100%"></div>
     </div>
     <div id="vActions" hidden style="display:flex;gap:8px;flex-wrap:wrap">
@@ -323,15 +323,36 @@ async function graph(path,opt={}){
 }
 
 /* --- choix et ouverture du fichier --- */
+const fileBtn=(f,i,sub)=>`<button class="btn ghost" type="button" data-i="${i}" style="text-align:left;height:auto;padding:10px 14px"><b>${esc(f.name)}</b>${sub?`<br><span class="file">${esc(sub)}</span>`:""}</button>`;
+const where=f=>{const p=f.parentReference?.path||"";return decodeURIComponent(p.replace(/^\/drive\/root:?/,""))||"Racine du OneDrive"};
+function pickList(list,fmt){
+  $("results").innerHTML=list.map((f,i)=>fileBtn(f,i,fmt(f))).join("");
+  $("results").onclick=e=>{const b=e.target.closest("button[data-i]");if(!b)return;const f=list[+b.dataset.i];
+    if(f.up!==undefined)return browse(f.up);if(f.folder)return browse(f.id,f.name);ls.set("bud.item",f.id);openItem(f.id)};
+}
 async function search(q){
   info("Recherche dans votre OneDrive…");$("results").innerHTML="";
-  const r=await graph(`/me/drive/root/search(q='${encodeURIComponent(q.replace(/'/g,"''"))}')?$top=50`);
-  if(!r.ok){info("Recherche impossible ("+r.status+").");return}
-  const files=(await r.json()).value.filter(f=>f.file&&/\.xls[mx]$/i.test(f.name));
-  if(!files.length){info("Aucun fichier Excel trouvé avec ce nom. Essayez un autre mot.");return}
+  const terms=[...new Set([q,q.replace(/[_\-.]+/g," ").trim(),"Budget","xlsm"].filter(Boolean))];let files=[],err=0;
+  for(const t of terms){
+    const r=await graph(`/me/drive/root/search(q='${encodeURIComponent(t.replace(/'/g,"''"))}')?$top=200`);
+    if(!r.ok){err=r.status;continue}
+    files=(await r.json()).value.filter(f=>f.file&&/\.xls[mx]$/i.test(f.name));if(files.length)break;
+  }
+  if(!files.length){info((err?`Recherche impossible (erreur ${err}). `:"La recherche ne trouve pas le fichier (OneDrive met parfois du temps à l'indexer). ")+"Parcourez vos dossiers :");return browse("root")}
+  files.sort((a,b)=>(b.name===q+".xlsm")-(a.name===q+".xlsm")||/\.xlsm$/i.test(b.name)-/\.xlsm$/i.test(a.name));
   info(files.length===1?"Un fichier trouvé :":`${files.length} fichiers trouvés, choisissez le bon :`);
-  $("results").innerHTML=files.map((f,i)=>`<button class="btn ghost" type="button" data-i="${i}" style="text-align:left;height:auto;padding:10px 14px"><b>${esc(f.name)}</b><br><span class="file">${esc(decodeURIComponent((f.parentReference?.path||"").replace(/^\/drive\/root:?/,""))||"Racine du OneDrive")}</span></button>`).join("");
-  $("results").onclick=e=>{const b=e.target.closest("button[data-i]");if(!b)return;const f=files[+b.dataset.i];ls.set("bud.item",f.id);openItem(f.id)};
+  pickList([...files,{name:"Parcourir mes dossiers",folder:true,id:"root"}],f=>f.file?where(f):"");
+}
+const trail=[];
+async function browse(id,name){
+  if(id==="root")trail.length=0;else{const k=trail.findIndex(t=>t.id===id);if(k>=0)trail.length=k+1;else trail.push({id,name})}
+  info("Ouverture du dossier…");
+  const r=await graph(id==="root"?"/me/drive/root/children?$top=200":`/me/drive/items/${encodeURIComponent(id)}/children?$top=200`);
+  if(!r.ok){info("Dossier illisible (erreur "+r.status+").");return}
+  const items=(await r.json()).value.filter(f=>f.folder||(f.file&&/\.xls[mx]$/i.test(f.name))).sort((a,b)=>!!b.folder-!!a.folder||a.name.localeCompare(b.name));
+  const up=trail.length?[{name:"Dossier parent",up:trail.length>1?trail[trail.length-2].id:"root",folder:true}]:[];
+  info("Dossier : "+["OneDrive",...trail.map(t=>t.name)].join(" › ")+(items.length?"":" (aucun fichier Excel ni sous-dossier)"));
+  pickList([...up,...items],f=>f.up!==undefined?"Remonter d'un niveau":f.folder?`Dossier · ${f.folder.childCount??0} élément${f.folder.childCount>1?"s":""}`:"Fichier Excel");
 }
 async function openItem(id,keepDraft=true){
   show("vActions");info("Ouverture du fichier…");
@@ -375,6 +396,7 @@ $("cfForce").addEventListener("click",()=>upload(true));
 $("cfReload").addEventListener("click",()=>{ls.del("bud.draft");openItem(item.id,false)});
 $("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos saisies non enregistrées seront perdues. Recharger ?")){ls.del("bud.draft");openItem(item?.id||ls.get("bud.item"),false)}});
 $("pickBtn").addEventListener("click",()=>{show("vPick","vActions");search($("q").value)});
+$("browseBtn").addEventListener("click",()=>browse("root"));
 $("searchF").addEventListener("submit",e=>{e.preventDefault();search($("q").value.trim()||"Budget")});
 $("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");ls.del("bud.item");ls.del("bud.draft");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
 $("loginBtn").addEventListener("click",login);
