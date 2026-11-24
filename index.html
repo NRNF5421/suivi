@@ -96,6 +96,7 @@ tr.edit td{background:var(--pan)}
       <button class="btn ghost" id="reloadBtn" type="button">Recharger le fichier</button>
       <button class="btn ghost" id="pickBtn" type="button">Changer de fichier</button>
       <button class="btn ghost" id="linkBtn" type="button">Lien pour un autre appareil</button>
+      <button class="btn ghost" id="shareBtn" type="button" hidden>Partager pour modification directe</button>
       <button class="btn ghost" id="inviteBtn" type="button">Lien pour une personne sans compte</button>
       <button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button>
     </div>
@@ -104,6 +105,11 @@ tr.edit td{background:var(--pan)}
       <p style="margin:0"><b>Le fichier a changé ailleurs</b> (dans Excel ou sur un autre appareil) depuis que vous l'avez ouvert.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="cfReload" type="button">Recharger le fichier (mes saisies non enregistrées sont perdues)</button><button class="btn ghost" id="cfForce" type="button">Écraser avec ma version</button></div>
     </div>
+    <form id="vShare" hidden style="display:grid;gap:8px;width:100%">
+      <p style="margin:0">Adresse e-mail du compte Microsoft de la personne (par ex. celle de Jenny). Elle pourra ouvrir et modifier le fichier directement depuis cette page.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="shMail" type="email" required placeholder="jenny@exemple.fr" style="flex:1 1 220px"><button class="btn" type="submit">Partager et copier son lien</button></div>
+      <p class="file" id="shInfo" style="margin:0;overflow-wrap:anywhere"></p>
+    </form>
     <div id="vInbox" hidden style="display:grid;gap:8px;width:100%">
       <p style="margin:0" id="inboxTitle"></p>
       <div class="scroll"><table><tbody id="inboxRows"></tbody></table></div>
@@ -320,7 +326,7 @@ function markDirty(){dirty=true;saveDraft();$("savebar").classList.add("dirty");
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
 
 /* --- compte Microsoft (OAuth 2 + PKCE, sans bibliothèque) --- */
-const AUTH="https://login.microsoftonline.com/consumers/oauth2/v2.0",GRAPH="https://graph.microsoft.com/v1.0",SCOPES="Files.ReadWrite offline_access openid";
+const AUTH="https://login.microsoftonline.com/consumers/oauth2/v2.0",GRAPH="https://graph.microsoft.com/v1.0",SCOPES="Files.ReadWrite.All offline_access openid";
 const REDIRECT=location.origin+location.pathname.replace(/index\.html$/,"");
 const ls={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}},del(k){try{localStorage.removeItem(k)}catch{}}};
 const ss={get(k){try{return sessionStorage.getItem(k)}catch{return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch{}}};
@@ -383,6 +389,7 @@ async function fromFolder(){
   }catch(e){if(e.quiet)return true}
   return false;
 }
+const ip=id=>id.includes("|")?`/drives/${encodeURIComponent(id.split("|")[0])}/items/${encodeURIComponent(id.split("|")[1])}`:`/me/drive/items/${encodeURIComponent(id)}`;
 const trail=[];
 async function browse(id,name){
   if(id==="root")trail.length=0;else{const k=trail.findIndex(t=>t.id===id);if(k>=0)trail.length=k+1;else trail.push({id,name})}
@@ -397,11 +404,12 @@ async function browse(id,name){
 async function openItem(id,keepDraft=true){
   show("vActions");info("Ouverture du fichier…");
   try{
-    const r=await graph(`/me/drive/items/${encodeURIComponent(id)}`);
+    const r=await graph(ip(id));
+    if((r.status===404||r.status===403)&&ls.get("bud.shared")){show("vLogin","vActions");info("Ce compte Microsoft n'a pas accès au fichier. Connectez-vous avec l'adresse e-mail à laquelle le partage a été envoyé, ou demandez un nouveau partage.");return}
     if(r.status===404){ls.del("bud.item");show("vPick","vActions");info("Fichier introuvable : il a peut-être été déplacé. Cherchez-le à nouveau.");return}
     if(!r.ok)throw new Error("erreur "+r.status);
     const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
-    book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name};
+    book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name,drive:meta.parentReference?.driveId,rid:meta.id};$("shareBtn").hidden=!!ls.get("bud.shared");
     rev=book.rev;bud=book.bud;deps=book.deps;dirty=false;$("savebar").classList.remove("dirty");
     $("app").hidden=false;$("months").hidden=false;$("savebar").hidden=false;
     info(`${meta.name} ouvert : ${deps.length} dépense${deps.length>1?"s":""} dans le fichier.`);setStatus("À jour.");
@@ -422,7 +430,7 @@ async function upload(force){
   if(!book||!item)return;const btn=$("saveBtn");btn.disabled=true;setStatus("Enregistrement dans OneDrive…");$("vConflict").hidden=true;
   try{
     const blob=await buildBook(book,rev,bud,deps);
-    const r=await graph(`/me/drive/items/${encodeURIComponent(item.id)}/content`,{method:"PUT",headers:{"Content-Type":"application/octet-stream",...(force?{}:{"If-Match":item.eTag})},body:blob});
+    const r=await graph(ip(item.id)+"/content",{method:"PUT",headers:{"Content-Type":"application/octet-stream",...(force?{}:{"If-Match":item.eTag})},body:blob});
     if(r.status===412){$("vConflict").hidden=false;setStatus("Non enregistré : le fichier a changé ailleurs.");$("acct").scrollIntoView({behavior:"smooth"})}
     else if(r.status===423)setStatus("Non enregistré : le fichier est verrouillé, probablement ouvert dans Excel. Fermez-le puis réessayez.");
     else if(!r.ok)setStatus("Enregistrement impossible (erreur "+r.status+"). Réessayez.");
@@ -438,7 +446,7 @@ $("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos sais
 $("pickBtn").addEventListener("click",()=>{show("vPick","vActions");search($("q").value)});
 $("browseBtn").addEventListener("click",()=>browse("root"));
 $("searchF").addEventListener("submit",e=>{e.preventDefault();search($("q").value.trim()||"Budget")});
-$("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");ls.del("bud.item");ls.del("bud.draft");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
+$("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");ls.del("bud.item");ls.del("bud.draft");ls.del("bud.shared");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
 $("loginBtn").addEventListener("click",login);
 $("linkBtn").addEventListener("click",()=>{const u=REDIRECT+"#client="+clientId;(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié. Ouvrez-le sur votre téléphone : la page y sera configurée, il restera à vous connecter."),()=>info("Lien pour votre téléphone : "+u))});
 $("redir").value=REDIRECT;
@@ -471,6 +479,17 @@ $("inAdd").addEventListener("click",()=>{
   setStatus(`${inbox.length} dépense${inbox.length>1?"s":""} ajoutée${inbox.length>1?"s":""} : enregistrez pour les écrire dans le fichier.`);
 });
 $("inDrop").addEventListener("click",()=>{if(!window.confirm("Ignorer ces dépenses reçues ?"))return;const seen=jget("bud.seen")||[];(jget("bud.inbox")||[]).forEach(x=>seen.push(x.gid));ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));ls.del("bud.inbox");renderInbox()});
+$("shareBtn").addEventListener("click",()=>{$("vShare").hidden=!$("vShare").hidden;if(!$("vShare").hidden)$("shMail").focus()});
+$("vShare").addEventListener("submit",async e=>{
+  e.preventDefault();if(!item)return;const mail=$("shMail").value.trim();$("shInfo").textContent="Partage en cours…";
+  try{const r=await graph(ip(item.id)+"/invite",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[{email:mail}],roles:["write"],requireSignIn:true,sendInvitation:true,message:"Je partage le budget 2026 avec toi : ouvre le lien de la page de saisie que je t'envoie."})});
+    if(!r.ok){let m="";try{m=(await r.json()).error?.message||""}catch{}throw new Error((m||"erreur "+r.status))}
+    if(!item.drive)throw new Error("identifiant du OneDrive introuvable, rechargez le fichier");
+    const link=REDIRECT+"#client="+encodeURIComponent(clientId)+"&fichier="+encodeURIComponent((item.drive||"")+"|"+item.rid);
+    let copied=false;try{copied=await Promise.race([navigator.clipboard.writeText(link).then(()=>true),new Promise(r=>setTimeout(()=>r(false),1500))])}catch{}
+    $("shInfo").textContent=(copied?"Fichier partagé et lien copié. ":"Fichier partagé. ")+`Envoyez ce lien à la personne : elle se connectera avec ${mail} et pourra modifier le budget directement : `+link;
+  }catch(err){if(!err.quiet)$("shInfo").textContent="Partage impossible : "+err.message}
+});
 $("inviteBtn").addEventListener("click",()=>{const u=REDIRECT+"#invite";(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié : envoyez-le à la personne. Elle pourra saisir ses dépenses sans compte et vous les renvoyer."),()=>info("Lien à envoyer : "+u))});
 
 /* --- mode invité --- */
@@ -500,7 +519,8 @@ function guestMode(){
 async function start(){
   const h=new URLSearchParams(location.hash.slice(1));
   if(location.hash==="#invite")return guestMode();
-  if(h.get("ajout")){receive(h.get("ajout"));history.replaceState(null,"",REDIRECT)}if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
+  if(h.get("ajout")){receive(h.get("ajout"));history.replaceState(null,"",REDIRECT)}if(h.get("fichier")){ls.set("bud.item",h.get("fichier"));ls.set("bud.shared","1")}
+  if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
   if(!clientId){show("vSetup");info("");return}
   const p=new URLSearchParams(location.search);
   if(p.get("error")){history.replaceState(null,"",REDIRECT);show("vLogin");info("Connexion refusée : "+(p.get("error_description")||p.get("error")).split("\n")[0]);return}
@@ -511,7 +531,7 @@ async function start(){
     catch(e){show("vLogin");info("Connexion impossible : "+e.message);return}
   }
   if(!(await accessToken())){show("vLogin");info("");return}
-  if(await fromFolder())return;const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
+  if(!ls.get("bud.shared")&&await fromFolder())return;const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
 }
 window.addEventListener("pagehide",()=>{if(dirty&&item)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))});
 start();
