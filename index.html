@@ -75,7 +75,7 @@ tr.edit td{background:var(--pan)}
 </style>
 </head>
 <body>
-<header class="band"><div class="wrap">
+<header class="band" id="ownerHead"><div class="wrap">
   <span class="tab-red">Budget 2026</span>
   <h1>Saisie du budget familial</h1>
   <p class="lede">Connectez-vous avec votre compte Microsoft : la page ouvre <b>Budget_2026_Analyse.xlsm</b> dans votre OneDrive, vous saisissez dépenses, revenus et budget, puis vous enregistrez directement dans le fichier. Sur téléphone comme sur ordinateur.</p>
@@ -96,12 +96,18 @@ tr.edit td{background:var(--pan)}
       <button class="btn ghost" id="reloadBtn" type="button">Recharger le fichier</button>
       <button class="btn ghost" id="pickBtn" type="button">Changer de fichier</button>
       <button class="btn ghost" id="linkBtn" type="button">Lien pour un autre appareil</button>
+      <button class="btn ghost" id="inviteBtn" type="button">Lien pour une personne sans compte</button>
       <button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button>
     </div>
     <span class="file" id="fileInfo"></span>
     <div id="vConflict" hidden style="display:grid;gap:8px">
       <p style="margin:0"><b>Le fichier a changé ailleurs</b> (dans Excel ou sur un autre appareil) depuis que vous l'avez ouvert.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="cfReload" type="button">Recharger le fichier (mes saisies non enregistrées sont perdues)</button><button class="btn ghost" id="cfForce" type="button">Écraser avec ma version</button></div>
+    </div>
+    <div id="vInbox" hidden style="display:grid;gap:8px;width:100%">
+      <p style="margin:0" id="inboxTitle"></p>
+      <div class="scroll"><table><tbody id="inboxRows"></tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="inAdd" type="button">Ajouter au budget</button><button class="btn ghost" id="inDrop" type="button">Ignorer</button></div>
     </div>
     <div id="vDraft" hidden style="display:grid;gap:8px">
       <p style="margin:0">Des saisies non enregistrées d'une séance précédente existent, mais le fichier a changé depuis.</p>
@@ -111,6 +117,28 @@ tr.edit td{background:var(--pan)}
   <nav class="months" id="months" aria-label="Mois" hidden></nav>
 </div></header>
 
+<section id="guest" class="band" hidden><div class="wrap">
+  <span class="tab-red">Budget 2026</span>
+  <h1>Saisie des dépenses</h1>
+  <p class="lede">Notez vos dépenses ici : elles restent sur ce téléphone jusqu'à ce que vous les envoyiez. L'envoi se fait par un lien (SMS, WhatsApp…) qui les ajoute au budget.</p>
+  <form class="add" id="gForm" autocomplete="off">
+    <label class="span2">Votre prénom<input id="gName" required placeholder="Ex. Jenny"></label>
+    <label>Date<input type="date" id="gDate" required min="2026-01-01" max="2026-12-31"></label>
+    <label class="span2">Libellé<input id="gLib" required placeholder="Ex. Carrefour"></label>
+    <label>Catégorie<select id="gCat" required></select></label>
+    <label>Prix (€)<input id="gPrix" inputmode="decimal" required placeholder="0,00"></label>
+    <label>Sous-catégorie<input id="gSous"></label>
+    <label class="span2">Commentaire<input id="gCom"></label>
+    <div class="span2"><button class="btn" type="submit">Ajouter à ma liste</button></div>
+  </form>
+  <h2 id="gTitle">Ma liste</h2>
+  <table class="stack"><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th class="num">Prix</th><th></th></tr></thead><tbody id="gRows"></tbody></table>
+  <div style="display:grid;gap:10px;margin-top:18px;justify-items:start">
+    <button class="btn red" id="gSend" type="button">Envoyer</button>
+    <p class="file" id="gInfo" style="margin:0;overflow-wrap:anywhere"></p>
+    <button class="btn ghost" id="gClear" type="button" hidden>C'est envoyé : vider ma liste</button>
+  </div>
+</div></section>
 <div id="app" hidden>
 <section class="panel" aria-label="Bilan du mois"><div class="wrap">
   <div class="kpis">
@@ -343,6 +371,18 @@ async function search(q){
   info(files.length===1?"Un fichier trouvé :":`${files.length} fichiers trouvés, choisissez le bon :`);
   pickList([...files,{name:"Parcourir mes dossiers",folder:true,id:"root"}],f=>f.file?where(f):"");
 }
+const FOLDER="Documents/Suivi-Budget";
+async function fromFolder(){
+  info("Recherche dans OneDrive › "+FOLDER.replace("/"," › ")+"…");
+  try{const r=await graph(`/me/drive/root:/${FOLDER.split("/").map(encodeURIComponent).join("/")}:/children?$top=200`);
+    if(!r.ok)return false;
+    const xl=(await r.json()).value.filter(f=>f.file&&/\.xlsm$/i.test(f.name));
+    const f=xl.find(f=>f.name==="Budget_2026_Analyse.xlsm")||xl.find(f=>/budget/i.test(f.name))||(xl.length===1?xl[0]:null);
+    if(f){ls.set("bud.item",f.id);openItem(f.id);return true}
+    if(xl.length){show("vPick","vActions");info("Plusieurs fichiers dans "+FOLDER+", choisissez le bon :");pickList(xl,()=>FOLDER);return true}
+  }catch(e){if(e.quiet)return true}
+  return false;
+}
 const trail=[];
 async function browse(id,name){
   if(id==="root")trail.length=0;else{const k=trail.findIndex(t=>t.id===id);if(k>=0)trail.length=k+1;else trail.push({id,name})}
@@ -370,7 +410,7 @@ async function openItem(id,keepDraft=true){
       if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
       else{show("vActions","vDraft");$("drApply").onclick=()=>{applyDraft(dr,"Saisies reprises : l'enregistrement remplacera les modifications faites ailleurs.");show("vActions")};$("drDrop").onclick=()=>{ls.del("bud.draft");show("vActions")}}
     }
-    resetForm();renderAll();
+    resetForm();renderAll();renderInbox();
   }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
 }
 function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);dirty=true;$("savebar").classList.add("dirty");setStatus(msg);renderAll()}
@@ -405,8 +445,62 @@ $("redir").value=REDIRECT;
 $("copyRedir").addEventListener("click",()=>{$("redir").select();navigator.clipboard?.writeText(REDIRECT).then(()=>$("copyRedir").textContent="Copié").catch(()=>{})});
 $("saveCid").addEventListener("click",()=>{const v=$("cid").value.trim();if(!/^[0-9a-f-]{36}$/i.test(v)){info("Cet identifiant ne ressemble pas à un ID d'application (format 00000000-0000-…).");return}clientId=v;ls.set("bud.client",v);start()});
 
+/* --- dépenses reçues d'une personne sans compte --- */
+const u8b64=str=>{const b=new TextEncoder().encode(str);let s="";b.forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+const b64u8=str=>{const s=atob(str.replace(/-/g,"+").replace(/_/g,"/"));return new TextDecoder().decode(Uint8Array.from(s,c=>c.charCodeAt(0)))};
+const jget=k=>{try{return JSON.parse(ls.get(k))}catch{return null}};
+function receive(code){
+  try{const o=JSON.parse(b64u8(code));const seen=new Set(jget("bud.seen")||[]);const inbox=jget("bud.inbox")||[];const have=new Set(inbox.map(x=>x.gid));
+    for(const r of o.d||[]){const [date,libelle,categorie,prix,sous,commentaire,gid]=r;
+      if(!gid||seen.has(gid)||have.has(gid)||!/^2026-\d\d-\d\d$/.test(date)||typeof prix!=="number")continue;
+      inbox.push({gid,from:String(o.f||"").slice(0,40),date,libelle:String(libelle||"").slice(0,120),categorie:String(categorie||"Autres").slice(0,60),prix:Math.round(prix*100)/100,sous:String(sous||"").slice(0,80),commentaire:String(commentaire||"").slice(0,200)})}
+    ls.set("bud.inbox",JSON.stringify(inbox));
+  }catch{}
+}
+function renderInbox(){
+  const inbox=jget("bud.inbox")||[];$("vInbox").hidden=!inbox.length||!book;if(!inbox.length||!book)return;
+  const names=[...new Set(inbox.map(x=>x.from).filter(Boolean))].join(", ")||"une personne sans compte";
+  $("inboxTitle").innerHTML=`<b>${inbox.length} dépense${inbox.length>1?"s":""} reçue${inbox.length>1?"s":""}</b> de ${esc(names)}, total ${eur(inbox.reduce((s,x)=>s+x.prix,0))} :`;
+  $("inboxRows").innerHTML=inbox.map(x=>`<tr><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td>${esc(x.libelle)}</td><td>${esc(x.categorie)}</td><td class="num">${eur(x.prix)}</td></tr>`).join("");
+}
+$("inAdd").addEventListener("click",()=>{
+  const inbox=jget("bud.inbox")||[],seen=jget("bud.seen")||[];
+  for(const x of inbox){const dup=deps.some(d=>d.date===x.date&&d.libelle===x.libelle&&+d.prix===x.prix&&d.categorie===x.categorie);
+    if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
+  ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));ls.del("bud.inbox");markDirty();renderAll();renderInbox();
+  setStatus(`${inbox.length} dépense${inbox.length>1?"s":""} ajoutée${inbox.length>1?"s":""} : enregistrez pour les écrire dans le fichier.`);
+});
+$("inDrop").addEventListener("click",()=>{if(!window.confirm("Ignorer ces dépenses reçues ?"))return;const seen=jget("bud.seen")||[];(jget("bud.inbox")||[]).forEach(x=>seen.push(x.gid));ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));ls.del("bud.inbox");renderInbox()});
+$("inviteBtn").addEventListener("click",()=>{const u=REDIRECT+"#invite";(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié : envoyez-le à la personne. Elle pourra saisir ses dépenses sans compte et vous les renvoyer."),()=>info("Lien à envoyer : "+u))});
+
+/* --- mode invité --- */
+function guestMode(){
+  $("ownerHead").hidden=true;$("app").hidden=true;$("savebar").hidden=true;$("guest").hidden=false;document.title="Saisie des dépenses";
+  let g=jget("bud.guest")||{name:"",items:[]};const keep=()=>ls.set("bud.guest",JSON.stringify(g));
+  $("gCat").innerHTML=CATS_DEP.map(c=>`<option>${esc(c)}</option>`).join("");
+  $("gName").value=g.name||"";const today=new Date().toISOString().slice(0,10);$("gDate").value=today.startsWith("2026")?today:"2026-01-01";
+  const render=()=>{const n=g.items.length;$("gTitle").textContent=n?`Ma liste : ${n} dépense${n>1?"s":""}, ${eur(g.items.reduce((s,x)=>s+x[3],0))}`:"Ma liste";
+    $("gRows").innerHTML=n?g.items.map((x,i)=>`<tr><td style="white-space:nowrap">${esc(x[0].split("-").reverse().join("/"))}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="num">${eur(x[3])}</td><td class="num"><button class="x" data-i="${i}">Retirer</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Aucune dépense en attente.</td></tr>`;
+    $("gSend").hidden=!n;$("gSend").textContent=`Envoyer ${n>1?"les "+n+" dépenses":"la dépense"}`};
+  $("gForm").addEventListener("submit",e=>{e.preventDefault();const prix=num($("gPrix").value);if(prix===null){$("gInfo").textContent="Le prix doit être un nombre, par ex. 12,50.";return}
+    g.name=$("gName").value.trim();g.items.push([$("gDate").value,$("gLib").value.trim(),$("gCat").value,prix,$("gSous").value.trim(),$("gCom").value.trim(),rnd(9)]);keep();
+    const d=$("gDate").value;$("gForm").reset();$("gName").value=g.name;$("gDate").value=d;$("gInfo").textContent="";$("gClear").hidden=true;render();$("gLib").focus()});
+  $("gRows").addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(!b)return;g.items.splice(+b.dataset.i,1);keep();render()});
+  $("gSend").addEventListener("click",async()=>{
+    g.name=$("gName").value.trim()||g.name;keep();const url=REDIRECT+"#ajout="+u8b64(JSON.stringify({f:g.name,d:g.items}));
+    const text=`${g.name||"Dépenses"} : ${g.items.length} dépense${g.items.length>1?"s":""} à ajouter au budget (${eur(g.items.reduce((s,x)=>s+x[3],0))})`;
+    try{if(navigator.share){await navigator.share({title:"Dépenses budget",text,url})}else{await navigator.clipboard.writeText(text+"\n"+url);$("gInfo").textContent="Lien copié : collez-le dans un message à la personne qui tient le budget."}
+      $("gClear").hidden=false;if(navigator.share)$("gInfo").textContent="Une fois le message envoyé, videz votre liste.";}
+    catch(err){if(err.name!=="AbortError"){$("gInfo").textContent="Copiez ce lien et envoyez-le : "+url;$("gClear").hidden=false}}
+  });
+  $("gClear").addEventListener("click",()=>{g.items=[];keep();$("gClear").hidden=true;$("gInfo").textContent="Liste vidée.";render()});
+  render();
+}
+
 async function start(){
-  const h=new URLSearchParams(location.hash.slice(1));if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
+  const h=new URLSearchParams(location.hash.slice(1));
+  if(location.hash==="#invite")return guestMode();
+  if(h.get("ajout")){receive(h.get("ajout"));history.replaceState(null,"",REDIRECT)}if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
   if(!clientId){show("vSetup");info("");return}
   const p=new URLSearchParams(location.search);
   if(p.get("error")){history.replaceState(null,"",REDIRECT);show("vLogin");info("Connexion refusée : "+(p.get("error_description")||p.get("error")).split("\n")[0]);return}
@@ -417,7 +511,7 @@ async function start(){
     catch(e){show("vLogin");info("Connexion impossible : "+e.message);return}
   }
   if(!(await accessToken())){show("vLogin");info("");return}
-  const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
+  if(await fromFolder())return;const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
 }
 window.addEventListener("pagehide",()=>{if(dirty&&item)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))});
 start();
