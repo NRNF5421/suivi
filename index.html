@@ -77,8 +77,6 @@ tr.edit td{background:var(--pan)}
 <body>
 <header class="band" id="ownerHead"><div class="wrap">
   <span class="tab-red">Budget 2026</span>
-  <h1>Saisie du budget familial</h1>
-  <p class="lede">Connectez-vous avec votre compte Microsoft : la page ouvre <b>Budget_2026_Analyse.xlsm</b> dans votre OneDrive, vous saisissez dépenses, revenus et budget, puis vous enregistrez directement dans le fichier. Sur téléphone comme sur ordinateur.</p>
   <div class="open" id="acct">
     <div id="vSetup" hidden style="display:grid;gap:12px;width:100%">
       <h2 style="margin:0">Première configuration</h2>
@@ -97,7 +95,6 @@ tr.edit td{background:var(--pan)}
       <button class="btn ghost" id="pickBtn" type="button">Changer de fichier</button>
       <button class="btn ghost" id="linkBtn" type="button">Lien pour un autre appareil</button>
       <button class="btn ghost" id="shareBtn" type="button" hidden>Partager pour modification directe</button>
-      <button class="btn ghost" id="inviteBtn" type="button">Lien pour une personne sans compte</button>
       <button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button>
     </div>
     <span class="file" id="fileInfo"></span>
@@ -490,7 +487,7 @@ $("vShare").addEventListener("submit",async e=>{
     $("shInfo").textContent=(copied?"Fichier partagé et lien copié. ":"Fichier partagé. ")+`Envoyez ce lien à la personne : elle se connectera avec ${mail} et pourra modifier le budget directement : `+link;
   }catch(err){if(!err.quiet)$("shInfo").textContent="Partage impossible : "+err.message}
 });
-$("inviteBtn").addEventListener("click",()=>{const u=REDIRECT+"#invite";(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié : envoyez-le à la personne. Elle pourra saisir ses dépenses sans compte et vous les renvoyer."),()=>info("Lien à envoyer : "+u))});
+false&&$("inviteBtn").addEventListener("click",()=>{const u=REDIRECT+"#invite";(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié : envoyez-le à la personne. Elle pourra saisir ses dépenses sans compte et vous les renvoyer."),()=>info("Lien à envoyer : "+u))});
 
 /* --- mode invité --- */
 function guestMode(){
