@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saisie Budget 2026</title>
+<style>
+/* VOICE: calm household ledger, precise like a newspaper money page
+   IDEA: the family account book; the Excel file is the book itself
+   PICTURE: the month's balance strip with category bars, above the entry form
+   COLOUR and TYPE: white, ink, red tab accent, slate; Georgia display + system sans
+   LAYOUT: red tab, title, open-file step, month strip, balance panel, tabs, save bar */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#10191e);--ink:light-dark(#121212,#eef2f4);--mut:light-dark(#5b6670,#9fb0ba);--red:#e3120b;--sl:light-dark(#2e6f8e,#7fbad6);--pan:light-dark(#e3ecf0,#1a2830);--rule:light-dark(#d5dde2,#2b3b44);--in:light-dark(#fff,#0c1418)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;overflow-x:clip;padding-bottom:90px}
+.band{padding:clamp(20px,3vw,40px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.tab-red{display:inline-block;background:var(--red);color:#fff;font-weight:600;font-size:13px;padding:4px 10px;margin-bottom:12px}
+h1{font:600 clamp(30px,4.4vw,46px)/1.05 Georgia,"Times New Roman",serif;margin:0 0 6px;text-wrap:balance}
+h2{font:600 24px/1.15 Georgia,"Times New Roman",serif;margin:0 0 12px}
+.lede{color:var(--mut);margin:0;max-width:66ch}
+.open{margin-top:20px;border:2px dashed var(--rule);padding:28px;display:grid;gap:12px;justify-items:start;max-width:720px}
+.open.drag{border-color:var(--sl);background:var(--pan)}
+.file{font-size:14px;color:var(--mut)}
+.months{display:flex;gap:6px;overflow-x:auto;padding:14px 0 4px}
+.months button{flex:none;min-height:44px;padding:0 14px;border:1px solid var(--rule);background:transparent;color:var(--ink);font:500 15px inherit;font-family:inherit;cursor:pointer}
+.months button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.panel{background:var(--pan);padding:clamp(18px,3vw,32px) max(5vw,16px)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:2px solid var(--ink)}
+.kpi{padding:12px 16px 12px 0;border-right:1px solid var(--rule)}.kpi:last-child{border:0}.kpi+.kpi{padding-left:16px}
+.kpi span{display:block;font-size:13px;color:var(--mut)}
+.kpi b{font:600 clamp(22px,3vw,32px)/1.1 Georgia,serif;white-space:nowrap}
+.neg{color:var(--red)}
+.bars{margin-top:18px;display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:11em minmax(0,1fr) 7em;gap:10px;align-items:center;font-size:14px}
+.bar .t{height:12px;background:light-dark(#fff,#0f1a20);position:relative}
+.bar .t i{position:absolute;inset:0 auto 0 0;background:var(--sl)}
+.bar .n,.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.empty{color:var(--mut);font-size:15px}
+.tabs{display:flex;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.tabs button{min-height:44px;padding:0 18px;border:0;background:transparent;color:var(--mut);font:600 16px inherit;font-family:inherit;cursor:pointer;border-bottom:4px solid transparent;margin-bottom:-2px}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--red)}
+form.add{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:end;margin:18px 0}
+label{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+input,select{font:16px inherit;font-family:inherit;min-height:44px;padding:8px 10px;border:1px solid var(--rule);background:var(--in);color:var(--ink);width:100%;border-radius:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--sl);outline-offset:1px}
+.btn{min-height:44px;padding:0 18px;border:0;background:var(--ink);color:var(--bg);font:600 15px inherit;font-family:inherit;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+.btn.red{background:var(--red);color:#fff}
+.span2{grid-column:span 2}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-weight:600;text-align:left;font-size:13px;color:var(--mut);border-bottom:1px solid var(--ink);padding:8px 8px 6px}
+td{border-bottom:1px solid var(--rule);padding:6px 8px;vertical-align:middle}
+td .x{border:0;background:none;color:var(--mut);cursor:pointer;min-height:44px;font:inherit;font-size:14px}
+td .x:hover{color:var(--red)}
+tr.edit td{background:var(--pan)}
+.grid input{min-height:38px;padding:4px 6px;text-align:right;width:6.5em;font-variant-numeric:tabular-nums}
+.grid th:first-child,.grid td:first-child{position:sticky;left:0;background:var(--bg);z-index:1;min-width:12em}
+.grid tr.edit td:first-child{background:var(--pan)}
+.grid tfoot td{font-weight:600;border-top:2px solid var(--ink)}
+.grid .fill{border:0;background:none;color:var(--sl);cursor:pointer;font-size:13px;min-height:38px;white-space:nowrap;font-family:inherit}
+.seg{display:inline-flex;border:1px solid var(--rule)}
+.seg button{min-height:38px;padding:0 10px;border:0;background:transparent;color:var(--mut);font:500 13px inherit;font-family:inherit;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--sl);color:#fff}
+.savebar{position:fixed;inset:auto 0 0 0;background:var(--ink);color:var(--bg);padding:12px max(5vw,16px);display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:5}
+.savebar p{margin:0;font-size:14px}
+.savebar .btn{background:var(--bg);color:var(--ink)}
+.savebar.dirty .btn{background:var(--red);color:#fff}
+[hidden]{display:none!important}
+.scroll{overflow-x:auto}
+@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(2){border:0}.kpi:nth-child(3){padding-left:0}}
+@media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:7.5em minmax(0,1fr) 5.5em;font-size:13px}
+.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mut)}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:no-preference){.bar .t i{transition:width .4s ease}}
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+  <span class="tab-red">Budget 2026</span>
+  <h1>Saisie du budget familial</h1>
+  <p class="lede">Connectez-vous avec votre compte Microsoft : la page ouvre <b>Budget_2026_Analyse.xlsm</b> dans votre OneDrive, vous saisissez dépenses, revenus et budget, puis vous enregistrez directement dans le fichier. Sur téléphone comme sur ordinateur.</p>
+  <div class="open" id="acct">
+    <div id="vSetup" hidden style="display:grid;gap:12px;width:100%">
+      <h2 style="margin:0">Première configuration</h2>
+      <p style="margin:0">1. Dans le portail Microsoft Entra, déclarez une application de type <b>Application monopage (SPA)</b> avec cette adresse de redirection :</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="redir" readonly style="flex:1 1 260px"><button class="btn ghost" id="copyRedir" type="button">Copier</button></div>
+      <p style="margin:0">2. Collez ici l'<b>ID d'application (client)</b> qu'elle vous donne :</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="cid" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off" spellcheck="false" style="flex:1 1 260px"><button class="btn" id="saveCid" type="button">Enregistrer</button></div>
+    </div>
+    <div id="vLogin" hidden><button class="btn" id="loginBtn" type="button">Se connecter avec Microsoft</button></div>
+    <div id="vPick" hidden style="display:grid;gap:10px;width:100%">
+      <form id="searchF" style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="q" value="Budget_2026_Analyse" aria-label="Nom du fichier" style="flex:1 1 220px"><button class="btn ghost" type="submit">Chercher</button></form>
+      <div id="results" style="display:grid;gap:8px;width:100%"></div>
+    </div>
+    <div id="vActions" hidden style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" id="reloadBtn" type="button">Recharger le fichier</button>
+      <button class="btn ghost" id="pickBtn" type="button">Changer de fichier</button>
+      <button class="btn ghost" id="linkBtn" type="button">Lien pour un autre appareil</button>
+      <button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button>
+    </div>
+    <span class="file" id="fileInfo"></span>
+    <div id="vConflict" hidden style="display:grid;gap:8px">
+      <p style="margin:0"><b>Le fichier a changé ailleurs</b> (dans Excel ou sur un autre appareil) depuis que vous l'avez ouvert.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="cfReload" type="button">Recharger le fichier (mes saisies non enregistrées sont perdues)</button><button class="btn ghost" id="cfForce" type="button">Écraser avec ma version</button></div>
+    </div>
+    <div id="vDraft" hidden style="display:grid;gap:8px">
+      <p style="margin:0">Des saisies non enregistrées d'une séance précédente existent, mais le fichier a changé depuis.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="drApply" type="button">Reprendre ces saisies</button><button class="btn ghost" id="drDrop" type="button">Les oublier</button></div>
+    </div>
+  </div>
+  <nav class="months" id="months" aria-label="Mois" hidden></nav>
+</div></header>
+
+<div id="app" hidden>
+<section class="panel" aria-label="Bilan du mois"><div class="wrap">
+  <div class="kpis">
+    <div class="kpi"><span>Revenus</span><b id="kRev"></b></div>
+    <div class="kpi"><span>Budget prévu</span><b id="kBud"></b></div>
+    <div class="kpi"><span>Dépenses saisies</span><b id="kDep"></b></div>
+    <div class="kpi"><span>Revenus − budget</span><b id="kRest"></b></div>
+  </div>
+  <div class="bars" id="bars"></div>
+</div></section>
+
+<main class="band"><div class="wrap">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-dep" aria-selected="true">Dépenses</button>
+    <button role="tab" id="t-rev" aria-selected="false">Revenus</button>
+    <button role="tab" id="t-bud" aria-selected="false">Budget</button>
+  </div>
+  <section id="p-dep">
+    <form class="add" id="fDep" autocomplete="off">
+      <label>Date<input type="date" id="dDate" required min="2026-01-01" max="2026-12-31"></label>
+      <label class="span2">Libellé<input id="dLib" list="libs" required placeholder="Ex. Carrefour"></label>
+      <label>Catégorie<select id="dCat" required></select></label>
+      <label>Prix (€)<input id="dPrix" inputmode="decimal" required placeholder="0,00"></label>
+      <label>Sous-catégorie<input id="dSous"></label>
+      <label class="span2">Commentaire<input id="dCom"></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" class="span2">
+        <button class="btn" id="dOk" type="submit">Ajouter la dépense</button>
+        <button class="btn ghost" id="dCancel" type="button" hidden>Annuler</button>
+      </div>
+    </form>
+    <datalist id="libs"></datalist>
+    <h2 id="depTitle"></h2>
+    <table class="stack"><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th>Sous-catégorie</th><th>Commentaire</th><th class="num">Prix</th><th></th></tr></thead><tbody id="depRows"></tbody></table>
+  </section>
+  <section id="p-rev" hidden>
+    <p class="lede" style="margin:18px 0">Lignes « Entrée 1 », « Entrée 2 », « Autres » et « Validation » du Dashboard.</p>
+    <div class="scroll"><table class="grid" id="revGrid"></table></div>
+  </section>
+  <section id="p-bud" hidden>
+    <p class="lede" style="margin:18px 0">Onglet « Budget Dépenses ». « Toute l'année » recopie le montant du mois sélectionné sur les 12 mois.</p>
+    <div class="scroll"><table class="grid" id="budGrid"></table></div>
+  </section>
+</div></main>
+</div>
+
+<div class="savebar" id="savebar" hidden>
+  <p id="status" role="status"></p>
+  <button class="btn" id="saveBtn" type="button">Enregistrer dans le fichier Excel</button>
+</div>
+
+<script>
+{
+/* ================= ZIP (lecture / écriture, sans bibliothèque) ================= */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+async function pipe(bytes,stream){return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer())}
+async function unzip(buf){
+  const u=new Uint8Array(buf),v=new DataView(buf);let e=u.length-22;
+  while(e>=0&&v.getUint32(e,true)!==0x06054b50)e--; if(e<0)throw new Error("Ce fichier n'est pas un classeur Excel valide.");
+  const n=v.getUint16(e+10,true);let p=v.getUint32(e+16,true);const out=[];
+  for(let i=0;i<n;i++){
+    const method=v.getUint16(p+10,true),flags=v.getUint16(p+8,true),time=v.getUint16(p+12,true),date=v.getUint16(p+14,true),crc=v.getUint32(p+16,true),csize=v.getUint32(p+20,true),usize=v.getUint32(p+24,true);
+    const nl=v.getUint16(p+28,true),xl=v.getUint16(p+30,true),cl=v.getUint16(p+32,true),off=v.getUint32(p+42,true);
+    const name=new TextDecoder().decode(u.subarray(p+46,p+46+nl));
+    const ds=off+30+v.getUint16(off+26,true)+v.getUint16(off+28,true);
+    out.push({name,method,flags,time,date,crc,csize,usize,raw:u.subarray(ds,ds+csize)});p+=46+nl+xl+cl;
+  }
+  return out;
+}
+async function entryBytes(en){return en.method===0?en.raw:pipe(en.raw,new DecompressionStream("deflate-raw"))}
+async function zip(entries){
+  const parts=[],cen=[];let off=0;const enc=new TextEncoder();
+  for(const en of entries){
+    if(en.data){en.usize=en.data.length;en.crc=crc32(en.data);en.raw=await pipe(en.data,new CompressionStream("deflate-raw"));en.method=8;en.csize=en.raw.length}
+    const nm=enc.encode(en.name),flags=(en.flags&~8)|0x800;
+    const h=new Uint8Array(30+nm.length),hv=new DataView(h.buffer);
+    hv.setUint32(0,0x04034b50,true);hv.setUint16(4,20,true);hv.setUint16(6,flags,true);hv.setUint16(8,en.method,true);hv.setUint16(10,en.time,true);hv.setUint16(12,en.date,true);
+    hv.setUint32(14,en.crc,true);hv.setUint32(18,en.csize,true);hv.setUint32(22,en.usize,true);hv.setUint16(26,nm.length,true);h.set(nm,30);
+    const c=new Uint8Array(46+nm.length),cv=new DataView(c.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,flags,true);cv.setUint16(10,en.method,true);cv.setUint16(12,en.time,true);cv.setUint16(14,en.date,true);
+    cv.setUint32(16,en.crc,true);cv.setUint32(20,en.csize,true);cv.setUint32(24,en.usize,true);cv.setUint16(28,nm.length,true);cv.setUint32(42,off,true);c.set(nm,46);
+    parts.push(h,en.raw);cen.push(c);off+=h.length+en.raw.length;
+  }
+  const cs=cen.reduce((s,c)=>s+c.length,0),end=new Uint8Array(22),ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(8,entries.length,true);ev.setUint16(10,entries.length,true);ev.setUint32(12,cs,true);ev.setUint32(16,off,true);
+  return new Blob([...parts,...cen,end],{type:"application/vnd.ms-excel.sheet.macroEnabled.12"});
+}
+
+/* ================= Lecture / écriture du classeur ================= */
+const ent=s=>s.replace(/&(#x?[0-9a-f]+|amp|lt|gt|quot|apos);/gi,(m,c)=>c[0]==="#"?String.fromCodePoint(c[1].toLowerCase()==="x"?parseInt(c.slice(2),16):+c.slice(1)):{amp:"&",lt:"<",gt:">",quot:'"',apos:"'"}[c.toLowerCase()]);
+const xesc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const texts=x=>[...x.replace(/<rPh[\s\S]*?<\/rPh>/g,"").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(m=>ent(m[1])).join("");
+const cellRe=ref=>new RegExp(`<c r="${ref}"(?:\\s[^>]*?)?(?:/>|>[\\s\\S]*?</c>)`);
+function readCell(xml,ref,sst){
+  const m=xml.match(cellRe(ref));if(!m)return null;const c=m[0];const head=c.slice(0,c.indexOf(">"));
+  const t=(head.match(/\st="(\w+)"/)||[])[1];
+  if(t==="inlineStr")return texts(c);
+  const v=(c.match(/<v>([\s\S]*?)<\/v>/)||[])[1];if(v==null)return null;
+  if(t==="s")return sst[+v]??null; if(t==="str"||t==="e")return ent(v); if(t==="b")return v==="1";
+  return +v;
+}
+function setCell(xml,ref,val){
+  const m=xml.match(cellRe(ref));if(!m)throw new Error(`Cellule ${ref} introuvable dans le classeur.`);
+  if(m[0].includes("<f"))throw new Error(`La cellule ${ref} contient une formule.`);
+  const s=(m[0].slice(0,m[0].indexOf(">")).match(/\ss="(\d+)"/)||[])[1];const sa=s?` s="${s}"`:"";
+  let c;if(val==null||val==="")c=`<c r="${ref}"${sa}/>`;
+  else if(typeof val==="number")c=`<c r="${ref}"${sa}><v>${val}</v></c>`;
+  else c=`<c r="${ref}"${sa} t="inlineStr"><is><t xml:space="preserve">${xesc(val)}</t></is></c>`;
+  return xml.slice(0,m.index)+c+xml.slice(m.index+m[0].length);
+}
+const COLS="BCDEFGHIJKLM",BCOLS="CDEFGHIJKLMN";
+const serialToIso=n=>new Date(Date.UTC(1899,11,30)+Math.round(n)*864e5).toISOString().slice(0,10);
+const isoToSerial=s=>Math.round((Date.parse(s+"T00:00:00Z")-Date.UTC(1899,11,30))/864e5);
+const resolve=(base,t)=>{if(t.startsWith("/"))return t.slice(1);const p=base.split("/");p.pop();for(const s of t.split("/")){if(s==="..")p.pop();else if(s!==".")p.push(s)}return p.join("/")};
+
+async function loadBook(buf){
+  const entries=await unzip(buf),byName=Object.fromEntries(entries.map(e=>[e.name,e])),dec=new TextDecoder();
+  const txt=async n=>{if(!byName[n])throw new Error(`Élément manquant : ${n}`);return dec.decode(await entryBytes(byName[n]))};
+  const wb=await txt("xl/workbook.xml"),rels=await txt("xl/_rels/workbook.xml.rels");
+  const relT=id=>resolve("xl/workbook.xml",(rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)||[])[1]);
+  const sheetPath=name=>{const m=[...wb.matchAll(/<sheet [^>]*>/g)].map(x=>x[0]).find(s=>ent((s.match(/name="([^"]*)"/)||[])[1]||"")===name);
+    if(!m)throw new Error(`Onglet « ${name} » introuvable : est-ce bien le fichier Budget 2026 ?`);return relT(m.match(/r:id="([^"]+)"/)[1])};
+  const P={dash:sheetPath("Dashboard"),budg:sheetPath("Budget Dépenses"),tx:sheetPath("Transaction")};
+  const txRels=await txt(P.tx.replace(/([^/]+)$/,"_rels/$1.rels"));
+  let tblPath=null;for(const m of txRels.matchAll(/<Relationship [^>]*>/g)){if(/\/table"/.test(m[0])){const p=resolve(P.tx,m[0].match(/Target="([^"]+)"/)[1]);if((await txt(p)).includes('name="Tableau3"'))tblPath=p}}
+  if(!tblPath)throw new Error("Tableau des transactions introuvable.");
+  const sst=byName["xl/sharedStrings.xml"]?[...(await txt("xl/sharedStrings.xml")).matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m=>texts(m[1])):[];
+  const X={wb,dash:await txt(P.dash),budg:await txt(P.budg),tx:await txt(P.tx),tbl:await txt(tblPath)};
+  const num=v=>typeof v==="number"?Math.round(v*100)/100:null;
+  const rev={e1:[],e2:[],autres:[],statut:[]};
+  [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>{for(const c of COLS)rev[k].push(num(readCell(X.dash,c+r,sst)))});
+  for(const c of COLS){const s=readCell(X.dash,c+"9",sst);rev.statut.push(s==="Validé"?"Validé":"Prévision")}
+  const bud={};for(let r=0;r<25;r++)bud["r"+r]=[...BCOLS].map(c=>num(readCell(X.budg,c+(r+3),sst)));
+  const last=+X.tbl.match(/ref="C1:H(\d+)"/)[1];const deps=[];
+  for(let n=2;n<=last;n++){
+    const g=c=>readCell(X.tx,c+n,sst);const d=g("C"),lib=g("D"),cat=g("E"),prix=g("F");
+    if(d==null&&lib==null&&cat==null&&prix==null)continue;
+    deps.push({id:"x"+n,date:typeof d==="number"?serialToIso(d):"",libelle:lib==null?"":String(lib),categorie:cat==null?"":String(cat),prix:typeof prix==="number"?prix:0,sous:g("G")==null?"":String(g("G")),commentaire:g("H")==null?"":String(g("H")),cree:n});
+  }
+  return {entries,P,tblPath,X,rev,bud,deps};
+}
+
+async function buildBook(B,rev,bud,deps){
+  let {dash,budg,tx,tbl,wb}=B.X;
+  [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>[...COLS].forEach((c,i)=>dash=setCell(dash,c+r,rev[k][i])));
+  [...COLS].forEach((c,i)=>dash=setCell(dash,c+"9",rev.statut[i]));
+  for(let r=0;r<25;r++)[...BCOLS].forEach((c,i)=>budg=setCell(budg,c+(r+3),bud["r"+r][i]));
+  const list=[...deps].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.cree||0)-(b.cree||0));
+  const last=+tbl.match(/ref="C1:H(\d+)"/)[1],need=Math.max(last,list.length+1);
+  if(need>last){
+    const tpl=tx.match(new RegExp(`<row r="${last}"[\\s\\S]*?</row>`))[0];let extra="";
+    for(let n=last+1;n<=need;n++)extra+=tpl.replace(`<row r="${last}"`,`<row r="${n}"`).replace(new RegExp(`(<c r="[A-Z]+)${last}"`,"g"),`$1${n}"`);
+    tx=tx.replace("</sheetData>",extra+"</sheetData>").replace(`<dimension ref="C1:H${last}"/>`,`<dimension ref="C1:H${need}"/>`);
+    tbl=tbl.split(`C1:H${last}`).join(`C1:H${need}`);
+  }
+  for(let n=2;n<=need;n++){const d=list[n-2]||{};
+    const vals={C:d.date?isoToSerial(d.date):null,D:d.libelle||null,E:d.categorie||null,F:d.prix==null||d.date==null?null:+d.prix,G:d.sous||null,H:d.commentaire||null};
+    for(const [c,v] of Object.entries(vals))tx=setCell(tx,c+n,v)}
+  wb=wb.replace(/<calcPr([^>]*?)\s*\/>/,(m,a)=>`<calcPr${a.replace(/\sfullCalcOnLoad="\d"/,"")} fullCalcOnLoad="1"/>`);
+  const enc=new TextEncoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};
+  return zip(B.entries.map(e=>changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
+}
+window.__budget={unzip,loadBook,buildBook};
+if(typeof document==="undefined"){}else{
+
+/* ================= Interface ================= */
+const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Projet Voyage","Enveloppe Aide","Autres"];
+const CATS_BUD=["Logement","Téléphone Eben","Téléphone Jenny","Électricité","Internet","Entretien & Reserve","Nourriture et Hygiene","Transport","Nouriture Enfants","Cpte Nériyah","Cpte Annaelle","Assurance","Cartes de crédit Eben","Cartes de crédit Jenny","Soins Perso Eben","Soins Perso Jenny","Enveloppe Aide","Epargne","Loisirs","Semences/ Offrandres","Voiture","Ass-mat / Garde","Autres","Voyage","Prêts"];
+const REV=[["e1","Entrée 1"],["e2","Entrée 2"],["autres","Autres"]];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const eur=n=>(Number(n)||0).toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
+const num=v=>{if(v===""||v==null)return null;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?Math.round(n*100)/100:null};
+const now=new Date();let month=now.getFullYear()===2026?now.getMonth():0,editId=null,dirty=false,seq=1000;
+let book=null,handle=null,fileName="Budget_2026_Analyse.xlsm",deps=[],rev,bud;
+const setStatus=t=>{$("status").textContent=t};
+function markDirty(){dirty=true;saveDraft();$("savebar").classList.add("dirty");setStatus("Modifications non enregistrées dans le fichier.")}
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
+
+/* --- compte Microsoft (OAuth 2 + PKCE, sans bibliothèque) --- */
+const AUTH="https://login.microsoftonline.com/consumers/oauth2/v2.0",GRAPH="https://graph.microsoft.com/v1.0",SCOPES="Files.ReadWrite offline_access openid";
+const REDIRECT=location.origin+location.pathname.replace(/index\.html$/,"");
+const ls={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}},del(k){try{localStorage.removeItem(k)}catch{}}};
+const ss={get(k){try{return sessionStorage.getItem(k)}catch{return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch{}}};
+let clientId=ls.get("bud.client"),item=null;
+const show=(...ids)=>{for(const v of ["vSetup","vLogin","vPick","vActions","vConflict","vDraft"])$(v).hidden=!ids.includes(v)};
+const info=t=>{$("fileInfo").textContent=t};
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const rnd=n=>b64u(crypto.getRandomValues(new Uint8Array(n)));
+async function tokenReq(body){
+  const r=await fetch(AUTH+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:clientId,scope:SCOPES,...body})});
+  const j=await r.json();if(!r.ok)throw new Error(j.error_description?.split("\r\n")[0]||j.error||"connexion refusée");
+  ls.set("bud.tok",JSON.stringify({at:j.access_token,rt:j.refresh_token,exp:Date.now()+(j.expires_in-90)*1000}));return j.access_token;
+}
+async function login(){
+  const v=rnd(48),st=rnd(16),ch=b64u(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
+  ss.set("bud.pkce",JSON.stringify({v,st}));
+  location.assign(AUTH+"/authorize?"+new URLSearchParams({client_id:clientId,response_type:"code",redirect_uri:REDIRECT,response_mode:"query",scope:SCOPES,code_challenge:ch,code_challenge_method:"S256",state:st}));
+}
+async function accessToken(){
+  let t=null;try{t=JSON.parse(ls.get("bud.tok"))}catch{}
+  if(!t)return null;if(t.at&&Date.now()<t.exp)return t.at;
+  if(t.rt){try{return await tokenReq({grant_type:"refresh_token",refresh_token:t.rt})}catch{}}
+  ls.del("bud.tok");return null;
+}
+async function graph(path,opt={}){
+  const t=await accessToken();if(!t){show("vLogin");info("Votre session a expiré : reconnectez-vous.");throw Object.assign(new Error("session expirée"),{quiet:true})}
+  return fetch(path.startsWith("http")?path:GRAPH+path,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+t}});
+}
+
+/* --- choix et ouverture du fichier --- */
+async function search(q){
+  info("Recherche dans votre OneDrive…");$("results").innerHTML="";
+  const r=await graph(`/me/drive/root/search(q='${encodeURIComponent(q.replace(/'/g,"''"))}')?$top=50`);
+  if(!r.ok){info("Recherche impossible ("+r.status+").");return}
+  const files=(await r.json()).value.filter(f=>f.file&&/\.xls[mx]$/i.test(f.name));
+  if(!files.length){info("Aucun fichier Excel trouvé avec ce nom. Essayez un autre mot.");return}
+  info(files.length===1?"Un fichier trouvé :":`${files.length} fichiers trouvés, choisissez le bon :`);
+  $("results").innerHTML=files.map((f,i)=>`<button class="btn ghost" type="button" data-i="${i}" style="text-align:left;height:auto;padding:10px 14px"><b>${esc(f.name)}</b><br><span class="file">${esc(decodeURIComponent((f.parentReference?.path||"").replace(/^\/drive\/root:?/,""))||"Racine du OneDrive")}</span></button>`).join("");
+  $("results").onclick=e=>{const b=e.target.closest("button[data-i]");if(!b)return;const f=files[+b.dataset.i];ls.set("bud.item",f.id);openItem(f.id)};
+}
+async function openItem(id,keepDraft=true){
+  show("vActions");info("Ouverture du fichier…");
+  try{
+    const r=await graph(`/me/drive/items/${encodeURIComponent(id)}`);
+    if(r.status===404){ls.del("bud.item");show("vPick","vActions");info("Fichier introuvable : il a peut-être été déplacé. Cherchez-le à nouveau.");return}
+    if(!r.ok)throw new Error("erreur "+r.status);
+    const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
+    book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name};
+    rev=book.rev;bud=book.bud;deps=book.deps;dirty=false;$("savebar").classList.remove("dirty");
+    $("app").hidden=false;$("months").hidden=false;$("savebar").hidden=false;
+    info(`${meta.name} ouvert : ${deps.length} dépense${deps.length>1?"s":""} dans le fichier.`);setStatus("À jour.");
+    let dr=null;try{dr=JSON.parse(ls.get("bud.draft"))}catch{}
+    if(keepDraft&&dr&&dr.id===id){
+      if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
+      else{show("vActions","vDraft");$("drApply").onclick=()=>{applyDraft(dr,"Saisies reprises : l'enregistrement remplacera les modifications faites ailleurs.");show("vActions")};$("drDrop").onclick=()=>{ls.del("bud.draft");show("vActions")}}
+    }
+    resetForm();renderAll();
+  }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
+}
+function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);dirty=true;$("savebar").classList.add("dirty");setStatus(msg);renderAll()}
+let draftT=null;
+function saveDraft(){clearTimeout(draftT);draftT=setTimeout(()=>{if(item&&dirty)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))},400)}
+
+/* --- enregistrement dans OneDrive --- */
+async function upload(force){
+  if(!book||!item)return;const btn=$("saveBtn");btn.disabled=true;setStatus("Enregistrement dans OneDrive…");$("vConflict").hidden=true;
+  try{
+    const blob=await buildBook(book,rev,bud,deps);
+    const r=await graph(`/me/drive/items/${encodeURIComponent(item.id)}/content`,{method:"PUT",headers:{"Content-Type":"application/octet-stream",...(force?{}:{"If-Match":item.eTag})},body:blob});
+    if(r.status===412){$("vConflict").hidden=false;setStatus("Non enregistré : le fichier a changé ailleurs.");$("acct").scrollIntoView({behavior:"smooth"})}
+    else if(r.status===423)setStatus("Non enregistré : le fichier est verrouillé, probablement ouvert dans Excel. Fermez-le puis réessayez.");
+    else if(!r.ok)setStatus("Enregistrement impossible (erreur "+r.status+"). Réessayez.");
+    else{const m=await r.json();item.eTag=m.eTag;book=await loadBook(await blob.arrayBuffer());dirty=false;ls.del("bud.draft");$("savebar").classList.remove("dirty");
+      setStatus("Enregistré dans OneDrive à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+".")}
+  }catch(e){if(!e.quiet)setStatus("Enregistrement impossible : "+e.message+". Vérifiez votre connexion.")}
+  btn.disabled=false;
+}
+$("saveBtn").addEventListener("click",()=>upload(false));
+$("cfForce").addEventListener("click",()=>upload(true));
+$("cfReload").addEventListener("click",()=>{ls.del("bud.draft");openItem(item.id,false)});
+$("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos saisies non enregistrées seront perdues. Recharger ?")){ls.del("bud.draft");openItem(item?.id||ls.get("bud.item"),false)}});
+$("pickBtn").addEventListener("click",()=>{show("vPick","vActions");search($("q").value)});
+$("searchF").addEventListener("submit",e=>{e.preventDefault();search($("q").value.trim()||"Budget")});
+$("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");ls.del("bud.item");ls.del("bud.draft");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
+$("loginBtn").addEventListener("click",login);
+$("linkBtn").addEventListener("click",()=>{const u=REDIRECT+"#client="+clientId;(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié. Ouvrez-le sur votre téléphone : la page y sera configurée, il restera à vous connecter."),()=>info("Lien pour votre téléphone : "+u))});
+$("redir").value=REDIRECT;
+$("copyRedir").addEventListener("click",()=>{$("redir").select();navigator.clipboard?.writeText(REDIRECT).then(()=>$("copyRedir").textContent="Copié").catch(()=>{})});
+$("saveCid").addEventListener("click",()=>{const v=$("cid").value.trim();if(!/^[0-9a-f-]{36}$/i.test(v)){info("Cet identifiant ne ressemble pas à un ID d'application (format 00000000-0000-…).");return}clientId=v;ls.set("bud.client",v);start()});
+
+async function start(){
+  const h=new URLSearchParams(location.hash.slice(1));if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
+  if(!clientId){show("vSetup");info("");return}
+  const p=new URLSearchParams(location.search);
+  if(p.get("error")){history.replaceState(null,"",REDIRECT);show("vLogin");info("Connexion refusée : "+(p.get("error_description")||p.get("error")).split("\n")[0]);return}
+  if(p.get("code")){
+    history.replaceState(null,"",REDIRECT);let pk=null;try{pk=JSON.parse(ss.get("bud.pkce"))}catch{}
+    if(!pk||pk.st!==p.get("state")){show("vLogin");info("La connexion n'a pas abouti, réessayez.");return}
+    try{info("Connexion…");await tokenReq({grant_type:"authorization_code",code:p.get("code"),redirect_uri:REDIRECT,code_verifier:pk.v})}
+    catch(e){show("vLogin");info("Connexion impossible : "+e.message);return}
+  }
+  if(!(await accessToken())){show("vLogin");info("");return}
+  const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
+}
+window.addEventListener("pagehide",()=>{if(dirty&&item)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))});
+start();
+/* --- mois & bilan --- */
+function renderMonths(){$("months").innerHTML=MOIS.map((m,i)=>`<button type="button" data-m="${i}" aria-pressed="${i===month}">${m}</button>`).join("")}
+$("months").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;month=+b.dataset.m;if(!editId)$("dDate").value=`2026-${String(month+1).padStart(2,"0")}-01`;renderAll()});
+const monthDeps=()=>deps.filter(d=>(d.date||"").slice(0,7)===`2026-${String(month+1).padStart(2,"0")}`).sort((a,b)=>a.date.localeCompare(b.date)||a.cree-b.cree);
+function renderSummary(){
+  const r=(rev.e1[month]||0)+(rev.e2[month]||0)+(rev.autres[month]||0),b=CATS_BUD.reduce((s,_,i)=>s+(bud["r"+i][month]||0),0);
+  const md=monthDeps(),d=md.reduce((s,x)=>s+(+x.prix||0),0);
+  $("kRev").textContent=eur(r);$("kBud").textContent=eur(b);$("kDep").textContent=eur(d);$("kRest").textContent=eur(r-b);$("kRest").className=r-b<0?"neg":"";
+  const by={};md.forEach(x=>by[x.categorie]=(by[x.categorie]||0)+(+x.prix||0));
+  const rows=Object.entries(by).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...rows.map(r=>r[1]));
+  $("bars").innerHTML=rows.length?rows.map(([c,v])=>`<div class="bar"><span>${esc(c)}</span><span class="t"><i style="width:${(v/max*100).toFixed(1)}%"></i></span><span class="n">${eur(v)}</span></div>`).join(""):`<p class="empty">Aucune dépense pour ${MOIS[month].toLowerCase()}.</p>`;
+}
+
+/* --- dépenses --- */
+$("dCat").innerHTML=CATS_DEP.map(c=>`<option>${esc(c)}</option>`).join("");
+function renderDeps(){
+  $("depTitle").textContent=`Dépenses de ${MOIS[month].toLowerCase()}`;const md=monthDeps();
+  $("depRows").innerHTML=md.length?md.map(x=>`<tr data-id="${esc(x.id)}" class="${x.id===editId?"edit":""}"><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td><button class="x" data-act="edit" style="color:var(--ink);text-align:left">${esc(x.libelle||"(sans libellé)")}</button></td><td>${esc(x.categorie)}</td><td>${esc(x.sous)}</td><td>${esc(x.commentaire)}</td><td class="num">${eur(x.prix)}</td><td class="num"><button class="x" data-act="del">Supprimer</button></td></tr>`).join("")
+    :`<tr><td colspan="7" class="empty">Rien pour ce mois. Ajoutez une dépense avec le formulaire.</td></tr>`;
+  $("libs").innerHTML=[...new Set(deps.map(d=>d.libelle).filter(Boolean))].slice(0,300).map(l=>`<option value="${esc(l)}">`).join("");
+}
+function resetForm(){editId=null;$("fDep").reset();$("dDate").value=`2026-${String(month+1).padStart(2,"0")}-01`;$("dOk").textContent="Ajouter la dépense";$("dCancel").hidden=true}
+$("dCancel").addEventListener("click",()=>{resetForm();renderDeps()});
+$("depRows").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-act]");if(!b)return;const id=b.closest("tr").dataset.id,x=deps.find(d=>d.id===id);if(!x)return;
+  if(b.dataset.act==="edit"){editId=id;$("dDate").value=x.date;$("dLib").value=x.libelle;
+    if(![...$("dCat").options].some(o=>o.value===x.categorie))$("dCat").insertAdjacentHTML("beforeend",`<option>${esc(x.categorie)}</option>`);
+    $("dCat").value=x.categorie;$("dPrix").value=String(x.prix).replace(".",",");$("dSous").value=x.sous;$("dCom").value=x.commentaire;
+    $("dOk").textContent="Enregistrer la modification";$("dCancel").hidden=false;renderDeps();$("dLib").focus();return}
+  if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer ?";setTimeout(()=>{if(b.isConnected){b.dataset.armed="";b.textContent="Supprimer"}},3000);return}
+  deps=deps.filter(d=>d.id!==id);if(editId===id)resetForm();markDirty();renderAll();
+});
+$("fDep").addEventListener("submit",e=>{
+  e.preventDefault();const prix=num($("dPrix").value);if(prix===null){setStatus("Le prix doit être un nombre, par ex. 12,50.");$("dPrix").focus();return}
+  const date=$("dDate").value;if(!/^2026-\d\d-\d\d$/.test(date)){setStatus("La date doit être en 2026.");return}
+  const body={date,libelle:$("dLib").value.trim(),categorie:$("dCat").value,prix,sous:$("dSous").value.trim(),commentaire:$("dCom").value.trim()};
+  if(editId){const i=deps.findIndex(d=>d.id===editId);deps[i]={...deps[i],...body}}else deps.push({id:"n"+(++seq),cree:seq,...body});
+  markDirty();resetForm();$("dDate").value=date;month=+date.slice(5,7)-1;renderAll();$("dLib").focus();
+});
+
+/* --- grilles --- */
+function keep(fn){setTimeout(()=>{const a=document.activeElement;let sel=null;
+  if(a&&a.closest&&a.closest(".grid"))sel=a.tagName.toLowerCase()+Object.entries(a.dataset).map(([k,v])=>`[data-${k}="${v}"]`).join("");
+  fn();if(sel){const n=document.querySelector(sel);if(n){n.focus();n.select&&n.select()}}},0)}
+const cell=(v,attrs)=>`<input ${attrs} value="${v==null?"":esc(String(v).replace(".",","))}" inputmode="decimal" aria-label="montant">`;
+function renderRev(){
+  const tot=i=>(rev.e1[i]||0)+(rev.e2[i]||0)+(rev.autres[i]||0);
+  $("revGrid").innerHTML=`<thead><tr><th>Mois</th>${REV.map(r=>`<th class="num">${r[1]}</th>`).join("")}<th class="num">Total</th><th>Statut</th></tr></thead><tbody>${
+    MOIS.map((m,i)=>`<tr${i===month?' class="edit"':""}><td>${m}</td>${REV.map(([k])=>`<td class="num">${cell(rev[k][i],`data-k="${k}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(tot(i))}</td><td><span class="seg">${["Validé","Prévision"].map(s=>`<button type="button" data-st="${s}" data-i="${i}" aria-pressed="${rev.statut[i]===s}">${s}</button>`).join("")}</span></td></tr>`).join("")
+  }</tbody><tfoot><tr><td>Année</td>${REV.map(([k])=>`<td class="num">${eur(rev[k].reduce((s,v)=>s+(v||0),0))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+tot(i),0))}</td><td></td></tr></tfoot>`;
+}
+$("revGrid").addEventListener("change",e=>{const t=e.target;if(!t.dataset.k)return;rev[t.dataset.k][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderRev();renderSummary()})});
+$("revGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-st]");if(!b)return;rev.statut[+b.dataset.i]=b.dataset.st;markDirty();keep(renderRev)});
+function renderBud(){
+  const col=i=>CATS_BUD.reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
+  $("budGrid").innerHTML=`<thead><tr><th>Catégorie</th>${MOIS.map((m,i)=>`<th class="num"${i===month?' style="color:var(--ink)"':""}>${m.length>4?m.slice(0,4)+".":m}</th>`).join("")}<th class="num">Année</th><th></th></tr></thead><tbody>${
+    CATS_BUD.map((c,r)=>`<tr><td>${esc(c)}</td>${MOIS.map((_,i)=>`<td class="num">${cell(bud["r"+r][i],`data-r="${r}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(bud["r"+r].reduce((s,v)=>s+(v||0),0))}</td><td><button class="fill" type="button" data-fill="${r}">Toute l'année</button></td></tr>`).join("")
+  }</tbody><tfoot><tr><td>Sous-total</td>${MOIS.map((_,i)=>`<td class="num">${eur(col(i))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+col(i),0))}</td><td></td></tr></tfoot>`;
+}
+$("budGrid").addEventListener("change",e=>{const t=e.target;if(t.dataset.r==null)return;bud["r"+t.dataset.r][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderBud();renderSummary()})});
+$("budGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-fill]");if(!b)return;const k="r"+b.dataset.fill;bud[k]=Array(12).fill(bud[k][month]);markDirty();renderBud();renderSummary()});
+
+document.querySelector(".tabs").addEventListener("click",e=>{const b=e.target.closest("button[role=tab]");if(!b)return;const tab=b.id.slice(2);
+  for(const t of ["dep","rev","bud"]){$("t-"+t).setAttribute("aria-selected",t===tab);$("p-"+t).hidden=t!==tab}});
+function renderAll(){renderMonths();renderSummary();renderDeps();renderRev();renderBud()}
+
+new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document.body,{childList:true,subtree:true});
+}
+}
+</script>
+</body>
+</html>
