@@ -65,6 +65,7 @@ tr.edit td{background:var(--pan)}
 .savebar{position:fixed;inset:auto 0 0 0;background:var(--ink);color:var(--bg);padding:12px max(5vw,16px);display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:5}
 .savebar p{margin:0;font-size:14px}
 .savebar .btn{background:var(--bg);color:var(--ink)}
+.savebar .btn.undo{background:transparent;color:var(--bg);border:1px solid currentColor}.savebar .btn.undo:disabled{opacity:.4;cursor:default}
 .savebar.dirty .btn{background:var(--red);color:#fff}
 [hidden]{display:none!important}
 .scroll{overflow-x:auto}
@@ -130,7 +131,6 @@ tr.edit td{background:var(--pan)}
     <label class="span2">Libellé<input id="gLib" required placeholder="Ex. Carrefour"></label>
     <label>Catégorie<select id="gCat" required></select></label>
     <label>Prix (€)<input id="gPrix" inputmode="decimal" required placeholder="0,00"></label>
-    <label>Sous-catégorie<input id="gSous"></label>
     <label class="span2">Commentaire<input id="gCom"></label>
     <div class="span2"><button class="btn" type="submit">Ajouter à ma liste</button></div>
   </form>
@@ -165,7 +165,6 @@ tr.edit td{background:var(--pan)}
       <label class="span2">Libellé<input id="dLib" list="libs" required placeholder="Ex. Carrefour"></label>
       <label>Catégorie<select id="dCat" required></select></label>
       <label>Prix (€)<input id="dPrix" inputmode="decimal" required placeholder="0,00"></label>
-      <label>Sous-catégorie<input id="dSous"></label>
       <label class="span2">Commentaire<input id="dCom"></label>
       <div style="display:flex;gap:8px;flex-wrap:wrap" class="span2">
         <button class="btn" id="dOk" type="submit">Ajouter la dépense</button>
@@ -174,7 +173,7 @@ tr.edit td{background:var(--pan)}
     </form>
     <datalist id="libs"></datalist>
     <h2 id="depTitle"></h2>
-    <table class="stack"><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th>Sous-catégorie</th><th>Commentaire</th><th class="num">Prix</th><th></th></tr></thead><tbody id="depRows"></tbody></table>
+    <table class="stack"><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th>Commentaire</th><th class="num">Prix</th><th></th></tr></thead><tbody id="depRows"></tbody></table>
   </section>
   <section id="p-rev" hidden>
     <p class="lede" style="margin:18px 0">Lignes « Entrée 1 », « Entrée 2 », « Autres » et « Validation » du Dashboard.</p>
@@ -189,7 +188,7 @@ tr.edit td{background:var(--pan)}
 
 <div class="savebar" id="savebar" hidden>
   <p id="status" role="status"></p>
-  <button class="btn" id="saveBtn" type="button">Enregistrer dans le fichier Excel</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn undo" id="undoBtn" type="button" disabled>Retour arrière</button><button class="btn" id="saveBtn" type="button">Enregistrer dans le fichier Excel</button></div>
 </div>
 
 <script>
@@ -319,7 +318,16 @@ const num=v=>{if(v===""||v==null)return null;const n=parseFloat(String(v).replac
 const now=new Date();let month=now.getFullYear()===2026?now.getMonth():0,editId=null,dirty=false,seq=1000;
 let book=null,handle=null,fileName="Budget_2026_Analyse.xlsm",deps=[],rev,bud;
 const setStatus=t=>{$("status").textContent=t};
-function markDirty(){dirty=true;saveDraft();$("savebar").classList.add("dirty");setStatus("Modifications non enregistrées dans le fichier.")}
+let hist=[],cur=null,savedState=null;
+const stateStr=()=>JSON.stringify({deps,rev,bud});
+function updUndo(){$("undoBtn").disabled=!hist.length}
+function setDirty(d){dirty=d;$("savebar").classList.toggle("dirty",d)}
+function resetHist(){hist=[];cur=stateStr();savedState=cur;updUndo()}
+function markDirty(){const now=stateStr();if(cur!==null&&now!==cur){hist.push(cur);if(hist.length>200)hist.shift()}cur=now;
+  setDirty(now!==savedState);if(dirty)saveDraft();else ls.del("bud.draft");updUndo();setStatus(dirty?"Modifications non enregistrées dans le fichier.":"À jour.")}
+function undo(){if(!hist.length)return;const prev=hist.pop(),o=JSON.parse(prev);deps=o.deps;rev=o.rev;bud=o.bud;cur=prev;
+  if(editId&&!deps.some(d=>d.id===editId))resetForm();setDirty(prev!==savedState);if(dirty)saveDraft();else ls.del("bud.draft");
+  updUndo();setStatus("Dernière modification annulée."+(dirty?" Pensez à enregistrer.":" Le fichier est à jour."));renderAll()}
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
 
 /* --- compte Microsoft (OAuth 2 + PKCE, sans bibliothèque) --- */
@@ -407,9 +415,9 @@ async function openItem(id,keepDraft=true){
     if(!r.ok)throw new Error("erreur "+r.status);
     const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
     book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name,drive:meta.parentReference?.driveId,rid:meta.id};$("shareBtn").hidden=!!ls.get("bud.shared");
-    rev=book.rev;bud=book.bud;deps=book.deps;dirty=false;$("savebar").classList.remove("dirty");
+    rev=book.rev;bud=book.bud;deps=book.deps;setDirty(false);resetHist();
     $("app").hidden=false;$("months").hidden=false;$("savebar").hidden=false;
-    info(`${meta.name} ouvert : ${deps.length} dépense${deps.length>1?"s":""} dans le fichier.`);setStatus("À jour.");
+    info(`${meta.name} ouvert.`);setStatus("À jour.");
     let dr=null;try{dr=JSON.parse(ls.get("bud.draft"))}catch{}
     if(keepDraft&&dr&&dr.id===id){
       if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
@@ -418,7 +426,7 @@ async function openItem(id,keepDraft=true){
     resetForm();renderAll();renderInbox();
   }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
 }
-function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);dirty=true;$("savebar").classList.add("dirty");setStatus(msg);renderAll()}
+function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);markDirty();setStatus(msg);renderAll()}
 let draftT=null;
 function saveDraft(){clearTimeout(draftT);draftT=setTimeout(()=>{if(item&&dirty)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))},400)}
 
@@ -431,12 +439,14 @@ async function upload(force){
     if(r.status===412){$("vConflict").hidden=false;setStatus("Non enregistré : le fichier a changé ailleurs.");$("acct").scrollIntoView({behavior:"smooth"})}
     else if(r.status===423)setStatus("Non enregistré : le fichier est verrouillé, probablement ouvert dans Excel. Fermez-le puis réessayez.");
     else if(!r.ok)setStatus("Enregistrement impossible (erreur "+r.status+"). Réessayez.");
-    else{const m=await r.json();item.eTag=m.eTag;book=await loadBook(await blob.arrayBuffer());dirty=false;ls.del("bud.draft");$("savebar").classList.remove("dirty");
+    else{const m=await r.json();item.eTag=m.eTag;book=await loadBook(await blob.arrayBuffer());savedState=stateStr();cur=savedState;setDirty(false);ls.del("bud.draft");
       setStatus("Enregistré dans OneDrive à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+".")}
   }catch(e){if(!e.quiet)setStatus("Enregistrement impossible : "+e.message+". Vérifiez votre connexion.")}
   btn.disabled=false;
 }
 $("saveBtn").addEventListener("click",()=>upload(false));
+$("undoBtn").addEventListener("click",undo);
+document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!e.target.closest("input,select,textarea")&&book){e.preventDefault();undo()}});
 $("cfForce").addEventListener("click",()=>upload(true));
 $("cfReload").addEventListener("click",()=>{ls.del("bud.draft");openItem(item.id,false)});
 $("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos saisies non enregistrées seront perdues. Recharger ?")){ls.del("bud.draft");openItem(item?.id||ls.get("bud.item"),false)}});
@@ -499,7 +509,7 @@ function guestMode(){
     $("gRows").innerHTML=n?g.items.map((x,i)=>`<tr><td style="white-space:nowrap">${esc(x[0].split("-").reverse().join("/"))}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="num">${eur(x[3])}</td><td class="num"><button class="x" data-i="${i}">Retirer</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Aucune dépense en attente.</td></tr>`;
     $("gSend").hidden=!n;$("gSend").textContent=`Envoyer ${n>1?"les "+n+" dépenses":"la dépense"}`};
   $("gForm").addEventListener("submit",e=>{e.preventDefault();const prix=num($("gPrix").value);if(prix===null){$("gInfo").textContent="Le prix doit être un nombre, par ex. 12,50.";return}
-    g.name=$("gName").value.trim();g.items.push([$("gDate").value,$("gLib").value.trim(),$("gCat").value,prix,$("gSous").value.trim(),$("gCom").value.trim(),rnd(9)]);keep();
+    g.name=$("gName").value.trim();g.items.push([$("gDate").value,$("gLib").value.trim(),$("gCat").value,prix,"",$("gCom").value.trim(),rnd(9)]);keep();
     const d=$("gDate").value;$("gForm").reset();$("gName").value=g.name;$("gDate").value=d;$("gInfo").textContent="";$("gClear").hidden=true;render();$("gLib").focus()});
   $("gRows").addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(!b)return;g.items.splice(+b.dataset.i,1);keep();render()});
   $("gSend").addEventListener("click",async()=>{
@@ -542,14 +552,14 @@ function renderSummary(){
   $("kRev").textContent=eur(r);$("kBud").textContent=eur(b);$("kDep").textContent=eur(d);$("kRest").textContent=eur(r-b);$("kRest").className=r-b<0?"neg":"";
   const by={};md.forEach(x=>by[x.categorie]=(by[x.categorie]||0)+(+x.prix||0));
   const rows=Object.entries(by).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...rows.map(r=>r[1]));
-  $("bars").innerHTML=rows.length?rows.map(([c,v])=>`<div class="bar"><span>${esc(c)}</span><span class="t"><i style="width:${(v/max*100).toFixed(1)}%"></i></span><span class="n">${eur(v)}</span></div>`).join(""):`<p class="empty">Aucune dépense pour ${MOIS[month].toLowerCase()}.</p>`;
+  $("bars").innerHTML=rows.length?rows.map(([c,v])=>`<div class="bar"><span>${esc(c)}</span><span class="t"><i style="width:${(v/max*100).toFixed(1)}%"></i></span><span class="n">${eur(v)}</span></div>`).join(""):`<p class="empty">Aucune dépense enregistrée en ${MOIS[month].toLowerCase()}.</p>`;
 }
 
 /* --- dépenses --- */
 $("dCat").innerHTML=CATS_DEP.map(c=>`<option>${esc(c)}</option>`).join("");
 function renderDeps(){
   $("depTitle").textContent=`Dépenses de ${MOIS[month].toLowerCase()}`;const md=monthDeps();
-  $("depRows").innerHTML=md.length?md.map(x=>`<tr data-id="${esc(x.id)}" class="${x.id===editId?"edit":""}"><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td><button class="x" data-act="edit" style="color:var(--ink);text-align:left">${esc(x.libelle||"(sans libellé)")}</button></td><td>${esc(x.categorie)}</td><td>${esc(x.sous)}</td><td>${esc(x.commentaire)}</td><td class="num">${eur(x.prix)}</td><td class="num"><button class="x" data-act="del">Supprimer</button></td></tr>`).join("")
+  $("depRows").innerHTML=md.length?md.map(x=>`<tr data-id="${esc(x.id)}" class="${x.id===editId?"edit":""}"><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td><button class="x" data-act="edit" style="color:var(--ink);text-align:left">${esc(x.libelle||"(sans libellé)")}</button></td><td>${esc(x.categorie)}</td><td>${esc(x.commentaire)}</td><td class="num">${eur(x.prix)}</td><td class="num"><button class="x" data-act="del">Supprimer</button></td></tr>`).join("")
     :`<tr><td colspan="7" class="empty">Rien pour ce mois. Ajoutez une dépense avec le formulaire.</td></tr>`;
   $("libs").innerHTML=[...new Set(deps.map(d=>d.libelle).filter(Boolean))].slice(0,300).map(l=>`<option value="${esc(l)}">`).join("");
 }
@@ -559,7 +569,7 @@ $("depRows").addEventListener("click",e=>{
   const b=e.target.closest("button[data-act]");if(!b)return;const id=b.closest("tr").dataset.id,x=deps.find(d=>d.id===id);if(!x)return;
   if(b.dataset.act==="edit"){editId=id;$("dDate").value=x.date;$("dLib").value=x.libelle;
     if(![...$("dCat").options].some(o=>o.value===x.categorie))$("dCat").insertAdjacentHTML("beforeend",`<option>${esc(x.categorie)}</option>`);
-    $("dCat").value=x.categorie;$("dPrix").value=String(x.prix).replace(".",",");$("dSous").value=x.sous;$("dCom").value=x.commentaire;
+    $("dCat").value=x.categorie;$("dPrix").value=String(x.prix).replace(".",",");$("dCom").value=x.commentaire;
     $("dOk").textContent="Enregistrer la modification";$("dCancel").hidden=false;renderDeps();$("dLib").focus();return}
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer ?";setTimeout(()=>{if(b.isConnected){b.dataset.armed="";b.textContent="Supprimer"}},3000);return}
   deps=deps.filter(d=>d.id!==id);if(editId===id)resetForm();markDirty();renderAll();
@@ -567,7 +577,7 @@ $("depRows").addEventListener("click",e=>{
 $("fDep").addEventListener("submit",e=>{
   e.preventDefault();const prix=num($("dPrix").value);if(prix===null){setStatus("Le prix doit être un nombre, par ex. 12,50.");$("dPrix").focus();return}
   const date=$("dDate").value;if(!/^2026-\d\d-\d\d$/.test(date)){setStatus("La date doit être en 2026.");return}
-  const body={date,libelle:$("dLib").value.trim(),categorie:$("dCat").value,prix,sous:$("dSous").value.trim(),commentaire:$("dCom").value.trim()};
+  const body={date,libelle:$("dLib").value.trim(),categorie:$("dCat").value,prix,commentaire:$("dCom").value.trim()};
   if(editId){const i=deps.findIndex(d=>d.id===editId);deps[i]={...deps[i],...body}}else deps.push({id:"n"+(++seq),cree:seq,...body});
   markDirty();resetForm();$("dDate").value=date;month=+date.slice(5,7)-1;renderAll();$("dLib").focus();
 });
