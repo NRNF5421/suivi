@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Saisie Budget 2026</title>
+<title>Saisie Budget</title>
 <style>
 /* VOICE: calm household ledger, precise like a newspaper money page
    IDEA: the family account book; the Excel file is the book itself
@@ -26,7 +26,7 @@ h2{font:600 24px/1.15 Georgia,"Times New Roman",serif;margin:0 0 12px}
 .months button{flex:none;min-height:44px;padding:0 14px;border:1px solid var(--rule);background:transparent;color:var(--ink);font:500 15px inherit;font-family:inherit;cursor:pointer}
 .months button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .panel{background:var(--pan);padding:clamp(18px,3vw,32px) max(5vw,16px)}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:2px solid var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:2px solid var(--ink)}
 .kpi{padding:12px 16px 12px 0;border-right:1px solid var(--rule)}.kpi:last-child{border:0}.kpi+.kpi{padding-left:16px}
 .kpi span{display:block;font-size:13px;color:var(--mut)}
 .kpi b{font:600 clamp(22px,3vw,32px)/1.1 Georgia,serif;white-space:nowrap}
@@ -56,6 +56,8 @@ td .x:hover{color:var(--red)}
 tr.edit td{background:var(--pan)}
 .grid input{min-height:38px;padding:4px 6px;text-align:right;width:6.5em;font-variant-numeric:tabular-nums}
 .grid th:first-child,.grid td:first-child{position:sticky;left:0;background:var(--bg);z-index:1;min-width:12em}
+:root{--zebra:light-dark(#f1f5f7,#16222a)}
+tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{background:var(--zebra)}
 .grid tr.edit td:first-child{background:var(--pan)}
 .grid tfoot td{border-top:0}.grid tfoot tr:first-child td{border-top:2px solid var(--ink)}.grid tfoot tr.tot td{font-weight:600;border-top:1px solid var(--ink)}
 .grid .fill{border:0;background:none;color:var(--sl);cursor:pointer;font-size:13px;min-height:38px;white-space:nowrap;font-family:inherit}
@@ -65,11 +67,11 @@ tr.edit td{background:var(--pan)}
 .savebar{position:fixed;inset:auto 0 0 0;background:var(--ink);color:var(--bg);padding:12px max(5vw,16px);display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:5}
 .savebar p{margin:0;font-size:14px}
 .savebar .btn{background:var(--bg);color:var(--ink)}
-.savebar .btn.undo{background:transparent;color:var(--bg);border:1px solid currentColor}.savebar .btn.undo:disabled{opacity:.4;cursor:default}
+.savebar .btn.undo,.savebar.dirty .btn.undo{background:transparent;color:var(--bg);border:1px solid currentColor}.savebar .btn.undo:disabled{opacity:.4;cursor:default}
 .savebar.dirty .btn{background:var(--red);color:#fff}
 [hidden]{display:none!important}
 .scroll{overflow-x:auto}
-@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(2){border:0}.kpi:nth-child(3){padding-left:0}}
+@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{border-right:0!important}.kpi:nth-child(odd){padding-left:0!important;border-right:1px solid var(--rule)!important}.kpi:nth-child(even){padding-left:16px}}
 @media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:7.5em minmax(0,1fr) 5.5em;font-size:13px}
 .stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mut)}.stack td:empty{display:none}}
 @media(prefers-reduced-motion:no-preference){.bar .t i{transition:width .4s ease}}
@@ -77,7 +79,7 @@ tr.edit td{background:var(--pan)}
 </head>
 <body>
 <header class="band" id="ownerHead"><div class="wrap">
-  <span class="tab-red">Budget 2026</span>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span class="tab-red" id="yTab" style="margin:0">Budget</span><span class="seg" id="years" role="group" aria-label="Année"></span></div>
   <div class="open" id="acct">
     <div id="vSetup" hidden style="display:grid;gap:12px;width:100%">
       <h2 style="margin:0">Première configuration</h2>
@@ -88,7 +90,7 @@ tr.edit td{background:var(--pan)}
     </div>
     <div id="vLogin" hidden><button class="btn" id="loginBtn" type="button">Se connecter avec Microsoft</button></div>
     <div id="vPick" hidden style="display:grid;gap:10px;width:100%">
-      <form id="searchF" style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="q" value="Budget_2026_Analyse" aria-label="Nom du fichier" style="flex:1 1 220px"><button class="btn ghost" type="submit">Chercher</button><button class="btn ghost" type="button" id="browseBtn">Parcourir mes dossiers</button></form>
+      <form id="searchF" style="display:flex;gap:8px;flex-wrap:wrap;width:100%"><input id="q" value="Budget_" aria-label="Nom du fichier" style="flex:1 1 220px"><button class="btn ghost" type="submit">Chercher</button><button class="btn ghost" type="button" id="browseBtn">Parcourir mes dossiers</button></form>
       <div id="results" style="display:grid;gap:8px;width:100%"></div>
     </div>
     <div id="vActions" hidden style="display:flex;gap:8px;flex-wrap:wrap">
@@ -102,6 +104,17 @@ tr.edit td{background:var(--pan)}
     <div id="vConflict" hidden style="display:grid;gap:8px">
       <p style="margin:0"><b>Le fichier a changé ailleurs</b> (dans Excel ou sur un autre appareil) depuis que vous l'avez ouvert.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="cfReload" type="button">Recharger le fichier (mes saisies non enregistrées sont perdues)</button><button class="btn ghost" id="cfForce" type="button">Écraser avec ma version</button></div>
+    </div>
+    <div id="vMigr" hidden style="display:grid;gap:8px;width:100%">
+            <p style="margin:0">Ce fichier contient encore « Nouriture Enfants » et « Assurance ». Remplacer par <b>PEL</b> et <b>Assurances</b> ? Les montants « Nouriture Enfants » sont effacés et le budget « Nourriture Annaelle » du Dashboard passe à 0. Le fichier est enregistré aussitôt.</p>
+      <div><button class="btn" id="migrGo" type="button">Appliquer et enregistrer</button></div>
+    </div>
+    <div id="vCreate" hidden style="display:grid;gap:10px;width:100%">
+      <p style="margin:0" id="crTitle"></p>
+      <label style="display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="crBud" checked style="width:22px;min-height:22px">Reprendre les montants du budget, mois par mois</label>
+      <label style="display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="crRev" checked style="width:22px;min-height:22px">Reprendre les revenus, en « Prévision »</label>
+      <p class="file" style="margin:0">Les dépenses (onglet Transaction) repartent de zéro. Le fichier de l'année précédente n'est pas modifié.</p>
+      <div><button class="btn" id="crGo" type="button"></button></div>
     </div>
     <form id="vShare" hidden style="display:grid;gap:8px;width:100%">
       <p style="margin:0">Adresse e-mail du compte Microsoft de la personne (par ex. celle de Jenny). Elle pourra ouvrir et modifier le fichier directement depuis cette page.</p>
@@ -122,12 +135,12 @@ tr.edit td{background:var(--pan)}
 </div></header>
 
 <section id="guest" class="band" hidden><div class="wrap">
-  <span class="tab-red">Budget 2026</span>
+  <span class="tab-red">Budget</span>
   <h1>Saisie des dépenses</h1>
   <p class="lede">Notez vos dépenses ici : elles restent sur ce téléphone jusqu'à ce que vous les envoyiez. L'envoi se fait par un lien (SMS, WhatsApp…) qui les ajoute au budget.</p>
   <form class="add" id="gForm" autocomplete="off">
     <label class="span2">Votre prénom<input id="gName" required placeholder="Ex. Jenny"></label>
-    <label>Date<input type="date" id="gDate" required min="2026-01-01" max="2026-12-31"></label>
+    <label>Date<input type="date" id="gDate" required></label>
     <label class="span2">Libellé<input id="gLib" required placeholder="Ex. Carrefour"></label>
     <label>Catégorie<select id="gCat" required></select></label>
     <label>Prix (€)<input id="gPrix" inputmode="decimal" required placeholder="0,00"></label>
@@ -149,6 +162,8 @@ tr.edit td{background:var(--pan)}
     <div class="kpi"><span>Total dépenses prévues</span><b id="kBud"></b></div>
     <div class="kpi"><span>Dépenses saisies</span><b id="kDep"></b></div>
     <div class="kpi"><span>Liquidité restante</span><b id="kRest"></b></div>
+    <div class="kpi" id="kPelBox"><span>PEL · mois validés</span><b id="kPel"></b></div>
+    <div class="kpi" id="kVoyBox"><span>Voyage · mois validés</span><b id="kVoy"></b></div>
   </div>
   <div class="bars" id="bars"></div>
 </div></section>
@@ -161,7 +176,7 @@ tr.edit td{background:var(--pan)}
   </div>
   <section id="p-dep">
     <form class="add" id="fDep" autocomplete="off">
-      <label>Date<input type="date" id="dDate" required min="2026-01-01" max="2026-12-31"></label>
+      <label>Date<input type="date" id="dDate" required></label>
       <label class="span2">Libellé<input id="dLib" list="libs" required placeholder="Ex. Carrefour"></label>
       <label>Catégorie<select id="dCat" required></select></label>
       <label>Prix (€)<input id="dPrix" inputmode="decimal" required placeholder="0,00"></label>
@@ -262,7 +277,7 @@ async function loadBook(buf){
   const wb=await txt("xl/workbook.xml"),rels=await txt("xl/_rels/workbook.xml.rels");
   const relT=id=>resolve("xl/workbook.xml",(rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)||[])[1]);
   const sheetPath=name=>{const m=[...wb.matchAll(/<sheet [^>]*>/g)].map(x=>x[0]).find(s=>ent((s.match(/name="([^"]*)"/)||[])[1]||"")===name);
-    if(!m)throw new Error(`Onglet « ${name} » introuvable : est-ce bien le fichier Budget 2026 ?`);return relT(m.match(/r:id="([^"]+)"/)[1])};
+    if(!m)throw new Error(`Onglet « ${name} » introuvable : est-ce bien un fichier de budget ?`);return relT(m.match(/r:id="([^"]+)"/)[1])};
   const P={dash:sheetPath("Dashboard"),budg:sheetPath("Budget Dépenses"),tx:sheetPath("Transaction")};
   const txRels=await txt(P.tx.replace(/([^/]+)$/,"_rels/$1.rels"));
   let tblPath=null;for(const m of txRels.matchAll(/<Relationship [^>]*>/g)){if(/\/table"/.test(m[0])){const p=resolve(P.tx,m[0].match(/Target="([^"]+)"/)[1]);if((await txt(p)).includes('name="Tableau3"'))tblPath=p}}
@@ -273,14 +288,14 @@ async function loadBook(buf){
   const rev={e1:[],e2:[],autres:[],statut:[]};
   [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>{for(const c of COLS)rev[k].push(num(readCell(X.dash,c+r,sst)))});
   for(const c of COLS){const s=readCell(X.dash,c+"9",sst);rev.statut.push(s==="Validé"?"Validé":"Prévision")}
-  const bud={};for(let r=0;r<25;r++)bud["r"+r]=[...BCOLS].map(c=>num(readCell(X.budg,c+(r+3),sst)));
+  const bud={},labels=[];for(let r=0;r<25;r++){bud["r"+r]=[...BCOLS].map(c=>num(readCell(X.budg,c+(r+3),sst)));const l=readCell(X.budg,"B"+(r+3),sst);labels.push(l==null?"":String(l).trim())}
   const last=+X.tbl.match(/ref="C1:H(\d+)"/)[1];const deps=[];
   for(let n=2;n<=last;n++){
     const g=c=>readCell(X.tx,c+n,sst);const d=g("C"),lib=g("D"),cat=g("E"),prix=g("F");
     if(d==null&&lib==null&&cat==null&&prix==null)continue;
     deps.push({id:"x"+n,date:typeof d==="number"?serialToIso(d):"",libelle:lib==null?"":String(lib),categorie:cat==null?"":String(cat),prix:typeof prix==="number"?prix:0,sous:g("G")==null?"":String(g("G")),commentaire:g("H")==null?"":String(g("H")),cree:n});
   }
-  return {entries,P,tblPath,X,rev,bud,deps};
+  return {entries,P,tblPath,X,rev,bud,deps,labels};
 }
 
 async function buildBook(B,rev,bud,deps){
@@ -303,7 +318,18 @@ async function buildBook(B,rev,bud,deps){
   const enc=new TextEncoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};
   return zip(B.entries.map(e=>changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
 }
-window.__budget={unzip,loadBook,buildBook};
+/* Structure 2027 : « Nouriture Enfants » (ligne 11) devient « PEL », « Assurance » devient « Assurances ».
+   La ligne est réutilisée pour ne décaler aucune formule ; le budget « Nourriture Annaelle » du Dashboard (qui lisait cette ligne) passe à 0. */
+const needsMigration=B=>B.labels[8]==="Nouriture Enfants"||B.labels[11]==="Assurance";
+function migrateBook(B,bud){
+  if(B.labels[8]==="Nouriture Enfants"){
+    B.X.budg=setCell(B.X.budg,"B11","PEL");B.labels[8]="PEL";bud.r8=Array(12).fill(null);
+    const m=B.X.dash.match(/<c r="B16"(?:\s[^>]*?)?(?:\/>|>[\s\S]*?<\/c>)/);
+    if(m&&m[0].includes("C11:N11"))B.X.dash=B.X.dash.replace(m[0],m[0].replace(/(<f[^>]*>)[\s\S]*?(<\/f>)/,(x,o,c)=>o+"0"+c).replace(/<v>[^<]*<\/v>/,"<v>0</v>"));
+  }
+  if(B.labels[11]==="Assurance"){B.X.budg=setCell(B.X.budg,"B14","Assurances");B.labels[11]="Assurances"}
+}
+window.__budget={unzip,loadBook,buildBook,migrateBook,needsMigration};
 if(typeof document==="undefined"){}else{
 
 /* ================= Interface ================= */
@@ -315,8 +341,13 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const eur=n=>(Number(n)||0).toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
 const num=v=>{if(v===""||v==null)return null;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?Math.round(n*100)/100:null};
-const now=new Date();let month=now.getFullYear()===2026?now.getMonth():0,editId=null,dirty=false,seq=1000;
-let book=null,handle=null,fileName="Budget_2026_Analyse.xlsm",deps=[],rev,bud;
+const now=new Date();
+let YEAR=(()=>{let y=null;try{y=+localStorage.getItem("bud.year")}catch{}return y>=2026?y:Math.max(2026,now.getFullYear())})();
+const YEARS=()=>{const a=[];for(let y=2026;y<=Math.max(now.getFullYear()+1,YEAR);y++)a.push(y);return a};
+const fname=y=>`Budget_${y}_Analyse.xlsm`;
+const mm=m=>`${YEAR}-${String(m+1).padStart(2,"0")}`;
+let month=now.getFullYear()===YEAR?now.getMonth():0,editId=null,dirty=false,seq=1000;
+let book=null,handle=null,deps=[],rev,bud;
 const setStatus=t=>{$("status").textContent=t};
 let hist=[],cur=null,savedState=null;
 const stateStr=()=>JSON.stringify({deps,rev,bud});
@@ -336,7 +367,7 @@ const REDIRECT=location.origin+location.pathname.replace(/index\.html$/,"");
 const ls={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}},del(k){try{localStorage.removeItem(k)}catch{}}};
 const ss={get(k){try{return sessionStorage.getItem(k)}catch{return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch{}}};
 let clientId=ls.get("bud.client"),item=null;
-const show=(...ids)=>{for(const v of ["vSetup","vLogin","vPick","vActions","vConflict","vDraft"])$(v).hidden=!ids.includes(v)};
+const show=(...ids)=>{for(const v of ["vSetup","vLogin","vPick","vActions","vConflict","vDraft","vCreate"])$(v).hidden=!ids.includes(v)};
 const info=t=>{$("fileInfo").textContent=t};
 const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const rnd=n=>b64u(crypto.getRandomValues(new Uint8Array(n)));
@@ -367,7 +398,7 @@ const where=f=>{const p=f.parentReference?.path||"";return decodeURIComponent(p.
 function pickList(list,fmt){
   $("results").innerHTML=list.map((f,i)=>fileBtn(f,i,fmt(f))).join("");
   $("results").onclick=e=>{const b=e.target.closest("button[data-i]");if(!b)return;const f=list[+b.dataset.i];
-    if(f.up!==undefined)return browse(f.up);if(f.folder)return browse(f.id,f.name);ls.set("bud.item",f.id);openItem(f.id)};
+    if(f.up!==undefined)return browse(f.up);if(f.folder)return browse(f.id,f.name);ls.set(IK(),f.id);openItem(f.id)};
 }
 async function search(q){
   info("Recherche dans votre OneDrive…");$("results").innerHTML="";
@@ -383,17 +414,43 @@ async function search(q){
   pickList([...files,{name:"Parcourir mes dossiers",folder:true,id:"root"}],f=>f.file?where(f):"");
 }
 const FOLDER="Documents/Suivi-Budget";
+let folderId=null;
+async function folderFiles(){
+  const r=await graph(`/me/drive/root:/${FOLDER.split("/").map(encodeURIComponent).join("/")}`+":?$expand=children($top=200)");
+  if(!r.ok)return null;const j=await r.json();folderId=j.id;return (j.children||[]).filter(f=>f.file&&/\.xlsm$/i.test(f.name));
+}
+const fileFor=(xl,y)=>xl.find(f=>f.name.toLowerCase()===fname(y).toLowerCase())||xl.find(f=>/budget/i.test(f.name)&&f.name.includes(String(y)));
 async function fromFolder(){
   info("Recherche dans OneDrive › "+FOLDER.replace("/"," › ")+"…");
-  try{const r=await graph(`/me/drive/root:/${FOLDER.split("/").map(encodeURIComponent).join("/")}:/children?$top=200`);
-    if(!r.ok)return false;
-    const xl=(await r.json()).value.filter(f=>f.file&&/\.xlsm$/i.test(f.name));
-    const f=xl.find(f=>f.name==="Budget_2026_Analyse.xlsm")||xl.find(f=>/budget/i.test(f.name))||(xl.length===1?xl[0]:null);
-    if(f){ls.set("bud.item",f.id);openItem(f.id);return true}
-    if(xl.length){show("vPick","vActions");info("Plusieurs fichiers dans "+FOLDER+", choisissez le bon :");pickList(xl,()=>FOLDER);return true}
-  }catch(e){if(e.quiet)return true}
-  return false;
+  try{const xl=await folderFiles();if(!xl)return false;
+    const f=fileFor(xl,YEAR);
+    if(f){ls.set(IK(),f.id);openItem(f.id);return true}
+    const prev=YEAR-1;if(fileFor(xl,prev)){showCreate(prev);return true}
+    return false;
+  }catch(e){if(e.quiet)return true;return false}
 }
+function showCreate(from){
+  show("vActions","vCreate");info("");$("crTitle").innerHTML=`<b>${fname(YEAR)}</b> n'existe pas encore dans ${esc(FOLDER.replace("/"," › "))}. Créez-le à partir du budget ${from} :`;
+  $("crGo").textContent=`Créer le budget ${YEAR}`;$("crGo").onclick=()=>createYear(from);
+}
+async function createYear(from){
+  const btn=$("crGo");btn.disabled=true;info(`Création de ${fname(YEAR)}…`);
+  try{const xl=await folderFiles();const src=xl&&fileFor(xl,from);if(!src)throw new Error(`fichier ${from} introuvable`);
+    const m=await (await graph(`/me/drive/items/${encodeURIComponent(src.id)}`)).json();
+    const B=await loadBook(await (await fetch(m["@microsoft.graph.downloadUrl"])).arrayBuffer());
+    const z=()=>Array(12).fill(null),keepRev=$("crRev").checked,keepBud=$("crBud").checked;
+    const nRev={e1:keepRev?[...B.rev.e1]:z(),e2:keepRev?[...B.rev.e2]:z(),autres:keepRev?[...B.rev.autres]:z(),statut:Array(12).fill("Prévision")};
+    const nBud={};for(let r=0;r<25;r++)nBud["r"+r]=keepBud?[...B.bud["r"+r]]:z();
+    try{B.X.dash=setCell(B.X.dash,"C12","Janvier")}catch{}
+    if(YEAR>=2027&&needsMigration(B))migrateBook(B,nBud);
+    const blob=await buildBook(B,nRev,nBud,[]);
+    const r=await graph(`/me/drive/items/${encodeURIComponent(folderId)}:/${encodeURIComponent(fname(YEAR))}:/content?@microsoft.graph.conflictBehavior=fail`,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:blob});
+    if(r.status===409)throw new Error("un fichier de ce nom existe déjà");if(!r.ok)throw new Error("erreur "+r.status);
+    const it=await r.json();ls.set(IK(),it.id);await openItem(it.id);setStatus(`Budget ${YEAR} créé dans OneDrive.`);
+  }catch(e){if(!e.quiet)info("Création impossible : "+e.message)}
+  btn.disabled=false;
+}
+const IK=()=>"bud.item."+YEAR;
 const ip=id=>id.includes("|")?`/drives/${encodeURIComponent(id.split("|")[0])}/items/${encodeURIComponent(id.split("|")[1])}`:`/me/drive/items/${encodeURIComponent(id)}`;
 const trail=[];
 async function browse(id,name){
@@ -411,7 +468,7 @@ async function openItem(id,keepDraft=true){
   try{
     const r=await graph(ip(id));
     if((r.status===404||r.status===403)&&ls.get("bud.shared")){show("vLogin","vActions");info("Ce compte Microsoft n'a pas accès au fichier. Connectez-vous avec l'adresse e-mail à laquelle le partage a été envoyé, ou demandez un nouveau partage.");return}
-    if(r.status===404){ls.del("bud.item");show("vPick","vActions");info("Fichier introuvable : il a peut-être été déplacé. Cherchez-le à nouveau.");return}
+    if(r.status===404){ls.del(IK());show("vPick","vActions");info("Fichier introuvable : il a peut-être été déplacé. Cherchez-le à nouveau.");return}
     if(!r.ok)throw new Error("erreur "+r.status);
     const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
     book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name,drive:meta.parentReference?.driveId,rid:meta.id};$("shareBtn").hidden=!!ls.get("bud.shared");
@@ -423,7 +480,7 @@ async function openItem(id,keepDraft=true){
       if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
       else{show("vActions","vDraft");$("drApply").onclick=()=>{applyDraft(dr,"Saisies reprises : l'enregistrement remplacera les modifications faites ailleurs.");show("vActions")};$("drDrop").onclick=()=>{ls.del("bud.draft");show("vActions")}}
     }
-    resetForm();renderAll();renderInbox();
+    resetForm();renderAll();renderInbox();$("vMigr").hidden=!(YEAR>=2027&&!ls.get("bud.shared")&&needsMigration(book));
   }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
 }
 function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);markDirty();setStatus(msg);renderAll()}
@@ -445,15 +502,16 @@ async function upload(force){
   btn.disabled=false;
 }
 $("saveBtn").addEventListener("click",()=>upload(false));
+$("migrGo").addEventListener("click",async()=>{if(!book)return;migrateBook(book,bud);$("vMigr").hidden=true;markDirty();renderAll();await upload(false);if(!dirty)resetHist()});
 $("undoBtn").addEventListener("click",undo);
 document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!e.target.closest("input,select,textarea")&&book){e.preventDefault();undo()}});
 $("cfForce").addEventListener("click",()=>upload(true));
 $("cfReload").addEventListener("click",()=>{ls.del("bud.draft");openItem(item.id,false)});
-$("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos saisies non enregistrées seront perdues. Recharger ?")){ls.del("bud.draft");openItem(item?.id||ls.get("bud.item"),false)}});
+$("reloadBtn").addEventListener("click",()=>{if(!dirty||window.confirm("Vos saisies non enregistrées seront perdues. Recharger ?")){ls.del("bud.draft");openItem(item?.id||ls.get(IK()),false)}});
 $("pickBtn").addEventListener("click",()=>{show("vPick","vActions");search($("q").value)});
 $("browseBtn").addEventListener("click",()=>browse("root"));
 $("searchF").addEventListener("submit",e=>{e.preventDefault();search($("q").value.trim()||"Budget")});
-$("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");ls.del("bud.item");ls.del("bud.draft");ls.del("bud.shared");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
+$("logoutBtn").addEventListener("click",()=>{if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Se déconnecter quand même ?"))return;ls.del("bud.tok");YEARS().forEach(y=>ls.del("bud.item."+y));ls.del("bud.draft");ls.del("bud.shared");location.assign(AUTH+"/logout?post_logout_redirect_uri="+encodeURIComponent(REDIRECT))});
 $("loginBtn").addEventListener("click",login);
 $("linkBtn").addEventListener("click",()=>{const u=REDIRECT+"#client="+clientId;(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>info("Lien copié. Ouvrez-le sur votre téléphone : la page y sera configurée, il restera à vous connecter."),()=>info("Lien pour votre téléphone : "+u))});
 $("redir").value=REDIRECT;
@@ -467,32 +525,32 @@ const jget=k=>{try{return JSON.parse(ls.get(k))}catch{return null}};
 function receive(code){
   try{const o=JSON.parse(b64u8(code));const seen=new Set(jget("bud.seen")||[]);const inbox=jget("bud.inbox")||[];const have=new Set(inbox.map(x=>x.gid));
     for(const r of o.d||[]){const [date,libelle,categorie,prix,sous,commentaire,gid]=r;
-      if(!gid||seen.has(gid)||have.has(gid)||!/^2026-\d\d-\d\d$/.test(date)||typeof prix!=="number")continue;
+      if(!gid||seen.has(gid)||have.has(gid)||!/^20\d\d-\d\d-\d\d$/.test(date)||typeof prix!=="number")continue;
       inbox.push({gid,from:String(o.f||"").slice(0,40),date,libelle:String(libelle||"").slice(0,120),categorie:String(categorie||"Autres").slice(0,60),prix:Math.round(prix*100)/100,sous:String(sous||"").slice(0,80),commentaire:String(commentaire||"").slice(0,200)})}
     ls.set("bud.inbox",JSON.stringify(inbox));
   }catch{}
 }
 function renderInbox(){
-  const inbox=jget("bud.inbox")||[];$("vInbox").hidden=!inbox.length||!book;if(!inbox.length||!book)return;
+  const inbox=(jget("bud.inbox")||[]).filter(x=>x.date.startsWith(YEAR+"-"));$("vInbox").hidden=!inbox.length||!book;if(!inbox.length||!book)return;
   const names=[...new Set(inbox.map(x=>x.from).filter(Boolean))].join(", ")||"une personne sans compte";
   $("inboxTitle").innerHTML=`<b>${inbox.length} dépense${inbox.length>1?"s":""} reçue${inbox.length>1?"s":""}</b> de ${esc(names)}, total ${eur(inbox.reduce((s,x)=>s+x.prix,0))} :`;
   $("inboxRows").innerHTML=inbox.map(x=>`<tr><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td>${esc(x.libelle)}</td><td>${esc(x.categorie)}</td><td class="num">${eur(x.prix)}</td></tr>`).join("");
 }
 $("inAdd").addEventListener("click",()=>{
-  const inbox=jget("bud.inbox")||[],seen=jget("bud.seen")||[];
+  const all=jget("bud.inbox")||[],inbox=all.filter(x=>x.date.startsWith(YEAR+"-")),seen=jget("bud.seen")||[];
   for(const x of inbox){const dup=deps.some(d=>d.date===x.date&&d.libelle===x.libelle&&+d.prix===x.prix&&d.categorie===x.categorie);
     if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
-  ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));ls.del("bud.inbox");markDirty();renderAll();renderInbox();
+  ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));const rest=all.filter(x=>!x.date.startsWith(YEAR+"-"));rest.length?ls.set("bud.inbox",JSON.stringify(rest)):ls.del("bud.inbox");markDirty();renderAll();renderInbox();
   setStatus(`${inbox.length} dépense${inbox.length>1?"s":""} ajoutée${inbox.length>1?"s":""} : enregistrez pour les écrire dans le fichier.`);
 });
-$("inDrop").addEventListener("click",()=>{if(!window.confirm("Ignorer ces dépenses reçues ?"))return;const seen=jget("bud.seen")||[];(jget("bud.inbox")||[]).forEach(x=>seen.push(x.gid));ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));ls.del("bud.inbox");renderInbox()});
+$("inDrop").addEventListener("click",()=>{if(!window.confirm("Ignorer ces dépenses reçues ?"))return;const seen=jget("bud.seen")||[];const all=jget("bud.inbox")||[];all.filter(x=>x.date.startsWith(YEAR+"-")).forEach(x=>seen.push(x.gid));ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));const rest=all.filter(x=>!x.date.startsWith(YEAR+"-"));rest.length?ls.set("bud.inbox",JSON.stringify(rest)):ls.del("bud.inbox");renderInbox()});
 $("shareBtn").addEventListener("click",()=>{$("vShare").hidden=!$("vShare").hidden;if(!$("vShare").hidden)$("shMail").focus()});
 $("vShare").addEventListener("submit",async e=>{
   e.preventDefault();if(!item)return;const mail=$("shMail").value.trim();$("shInfo").textContent="Partage en cours…";
-  try{const r=await graph(ip(item.id)+"/invite",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[{email:mail}],roles:["write"],requireSignIn:true,sendInvitation:true,message:"Je partage le budget 2026 avec toi : ouvre le lien de la page de saisie que je t'envoie."})});
+  try{const r=await graph(ip(item.id)+"/invite",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[{email:mail}],roles:["write"],requireSignIn:true,sendInvitation:true,message:`Je partage le budget ${YEAR} avec toi : ouvre le lien de la page de saisie que je t'envoie.`})});
     if(!r.ok){let m="";try{m=(await r.json()).error?.message||""}catch{}throw new Error((m||"erreur "+r.status))}
     if(!item.drive)throw new Error("identifiant du OneDrive introuvable, rechargez le fichier");
-    const link=REDIRECT+"#client="+encodeURIComponent(clientId)+"&fichier="+encodeURIComponent((item.drive||"")+"|"+item.rid);
+    const link=REDIRECT+"#client="+encodeURIComponent(clientId)+"&fichier="+encodeURIComponent((item.drive||"")+"|"+item.rid)+"&annee="+YEAR;
     let copied=false;try{copied=await Promise.race([navigator.clipboard.writeText(link).then(()=>true),new Promise(r=>setTimeout(()=>r(false),1500))])}catch{}
     $("shInfo").textContent=(copied?"Fichier partagé et lien copié. ":"Fichier partagé. ")+`Envoyez ce lien à la personne : elle se connectera avec ${mail} et pourra modifier le budget directement : `+link;
   }catch(err){if(!err.quiet)$("shInfo").textContent="Partage impossible : "+err.message}
@@ -504,7 +562,7 @@ function guestMode(){
   $("ownerHead").hidden=true;$("app").hidden=true;$("savebar").hidden=true;$("guest").hidden=false;document.title="Saisie des dépenses";
   let g=jget("bud.guest")||{name:"",items:[]};const keep=()=>ls.set("bud.guest",JSON.stringify(g));
   $("gCat").innerHTML=CATS_DEP.map(c=>`<option>${esc(c)}</option>`).join("");
-  $("gName").value=g.name||"";const today=new Date().toISOString().slice(0,10);$("gDate").value=today.startsWith("2026")?today:"2026-01-01";
+  $("gName").value=g.name||"";$("gDate").value=new Date().toISOString().slice(0,10);
   const render=()=>{const n=g.items.length;$("gTitle").textContent=n?`Ma liste : ${n} dépense${n>1?"s":""}, ${eur(g.items.reduce((s,x)=>s+x[3],0))}`:"Ma liste";
     $("gRows").innerHTML=n?g.items.map((x,i)=>`<tr><td style="white-space:nowrap">${esc(x[0].split("-").reverse().join("/"))}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="num">${eur(x[3])}</td><td class="num"><button class="x" data-i="${i}">Retirer</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Aucune dépense en attente.</td></tr>`;
     $("gSend").hidden=!n;$("gSend").textContent=`Envoyer ${n>1?"les "+n+" dépenses":"la dépense"}`};
@@ -524,9 +582,11 @@ function guestMode(){
 }
 
 async function start(){
+  if(ls.get("bud.item")&&!ls.get("bud.item.2026")){ls.set("bud.item.2026",ls.get("bud.item"));ls.del("bud.item")}
+  renderYears();
   const h=new URLSearchParams(location.hash.slice(1));
   if(location.hash==="#invite")return guestMode();
-  if(h.get("ajout")){receive(h.get("ajout"));history.replaceState(null,"",REDIRECT)}if(h.get("fichier")){ls.set("bud.item",h.get("fichier"));ls.set("bud.shared","1")}
+  if(h.get("ajout")){receive(h.get("ajout"));history.replaceState(null,"",REDIRECT)}if(h.get("fichier")){const y=+h.get("annee")||2026;ls.set("bud.item."+y,h.get("fichier"));ls.set("bud.shared","1");setYear(y)}
   if(h.get("client")){clientId=h.get("client");ls.set("bud.client",clientId);history.replaceState(null,"",REDIRECT)}
   if(!clientId){show("vSetup");info("");return}
   const p=new URLSearchParams(location.search);
@@ -538,17 +598,33 @@ async function start(){
     catch(e){show("vLogin");info("Connexion impossible : "+e.message);return}
   }
   if(!(await accessToken())){show("vLogin");info("");return}
-  if(!ls.get("bud.shared")&&await fromFolder())return;const id=ls.get("bud.item");if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
+  openYear();
 }
+async function openYear(){
+  book=null;item=null;$("vMigr").hidden=true;$("app").hidden=true;$("months").hidden=true;$("savebar").hidden=true;$("vInbox").hidden=true;$("vShare").hidden=true;
+  const id=ls.get(IK());
+  if(ls.get("bud.shared")){if(id)openItem(id);else{show("vActions");info(`Le budget ${YEAR} n'a pas encore été partagé avec vous.`)}return}
+  if(await fromFolder())return;if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
+}
+function renderYears(){$("years").innerHTML=YEARS().map(y=>`<button type="button" data-y="${y}" aria-pressed="${y===YEAR}">${y}</button>`).join("");$("yTab").textContent="Budget "+YEAR;document.title="Saisie Budget "+YEAR;
+  for(const d of [$("dDate"),$("gDate")]){d.min=YEAR+"-01-01";d.max=YEAR+"-12-31"}}
+function setYear(y){YEAR=y;ls.set("bud.year",String(y));month=now.getFullYear()===YEAR?now.getMonth():0;renderYears()}
+$("years").addEventListener("click",e=>{const b=e.target.closest("button[data-y]");if(!b||+b.dataset.y===YEAR)return;
+  if(dirty&&!window.confirm("Des saisies ne sont pas enregistrées. Changer d'année quand même ?"))return;
+  setDirty(false);ls.del("bud.draft");setYear(+b.dataset.y);if(clientId&&ls.get("bud.tok"))openYear()});
 window.addEventListener("pagehide",()=>{if(dirty&&item)ls.set("bud.draft",JSON.stringify({id:item.id,eTag:item.eTag,rev,bud,deps,seq}))});
 start();
 /* --- mois & bilan --- */
 function renderMonths(){$("months").innerHTML=MOIS.map((m,i)=>`<button type="button" data-m="${i}" aria-pressed="${i===month}">${m}</button>`).join("")}
-$("months").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;month=+b.dataset.m;if(!editId)$("dDate").value=`2026-${String(month+1).padStart(2,"0")}-01`;renderAll()});
-const monthDeps=()=>deps.filter(d=>(d.date||"").slice(0,7)===`2026-${String(month+1).padStart(2,"0")}`).sort((a,b)=>a.date.localeCompare(b.date)||a.cree-b.cree);
+$("months").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;month=+b.dataset.m;if(!editId)$("dDate").value=mm(month)+"-01";renderAll()});
+const monthDeps=()=>deps.filter(d=>(d.date||"").slice(0,7)===mm(month)).sort((a,b)=>a.date.localeCompare(b.date)||a.cree-b.cree);
 function renderSummary(){
   const r=(rev.e1[month]||0)+(rev.e2[month]||0)+(rev.autres[month]||0),b=budTot(month);
   const md=monthDeps(),d=md.reduce((s,x)=>s+(+x.prix||0),0);
+  const rowOf=n=>LBL().findIndex(l=>l.toLowerCase()===n),val=i=>rev.statut[i]==="Validé";
+  const cum=k=>k<0?null:MOIS.reduce((s,_,i)=>s+(val(i)?(bud["r"+k][i]||0):0),0);
+  const pel=cum(rowOf("pel")),vk=rowOf("voyage"),voy=vk<0?null:cum(vk)-deps.filter(x=>x.categorie==="Projet Voyage").reduce((s,x)=>s+(+x.prix||0),0);
+  $("kPelBox").hidden=pel===null;$("kVoyBox").hidden=voy===null;if(pel!==null)$("kPel").textContent=eur(pel);if(voy!==null){$("kVoy").textContent=eur(voy);$("kVoy").className=voy<0?"neg":""}
   $("kRev").textContent=eur(r);$("kBud").textContent=eur(b);$("kDep").textContent=eur(d);$("kRest").textContent=eur(r-b);$("kRest").className=r-b<0?"neg":"";
   const by={};md.forEach(x=>by[x.categorie]=(by[x.categorie]||0)+(+x.prix||0));
   const rows=Object.entries(by).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...rows.map(r=>r[1]));
@@ -563,7 +639,7 @@ function renderDeps(){
     :`<tr><td colspan="7" class="empty">Rien pour ce mois. Ajoutez une dépense avec le formulaire.</td></tr>`;
   $("libs").innerHTML=[...new Set(deps.map(d=>d.libelle).filter(Boolean))].slice(0,300).map(l=>`<option value="${esc(l)}">`).join("");
 }
-function resetForm(){editId=null;$("fDep").reset();$("dDate").value=`2026-${String(month+1).padStart(2,"0")}-01`;$("dOk").textContent="Ajouter la dépense";$("dCancel").hidden=true}
+function resetForm(){editId=null;$("fDep").reset();$("dDate").value=mm(month)+"-01";$("dOk").textContent="Ajouter la dépense";$("dCancel").hidden=true}
 $("dCancel").addEventListener("click",()=>{resetForm();renderDeps()});
 $("depRows").addEventListener("click",e=>{
   const b=e.target.closest("button[data-act]");if(!b)return;const id=b.closest("tr").dataset.id,x=deps.find(d=>d.id===id);if(!x)return;
@@ -576,7 +652,7 @@ $("depRows").addEventListener("click",e=>{
 });
 $("fDep").addEventListener("submit",e=>{
   e.preventDefault();const prix=num($("dPrix").value);if(prix===null){setStatus("Le prix doit être un nombre, par ex. 12,50.");$("dPrix").focus();return}
-  const date=$("dDate").value;if(!/^2026-\d\d-\d\d$/.test(date)){setStatus("La date doit être en 2026.");return}
+  const date=$("dDate").value;if(date.slice(0,4)!==String(YEAR)){setStatus(`La date doit être en ${YEAR}.`);return}
   const body={date,libelle:$("dLib").value.trim(),categorie:$("dCat").value,prix,commentaire:$("dCom").value.trim()};
   if(editId){const i=deps.findIndex(d=>d.id===editId);deps[i]={...deps[i],...body}}else deps.push({id:"n"+(++seq),cree:seq,...body});
   markDirty();resetForm();$("dDate").value=date;month=+date.slice(5,7)-1;renderAll();$("dLib").focus();
@@ -594,15 +670,15 @@ function renderRev(){
   }</tbody><tfoot><tr class="tot"><td>Année</td>${REV.map(([k])=>`<td class="num">${eur(rev[k].reduce((s,v)=>s+(v||0),0))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+tot(i),0))}</td><td></td></tr></tfoot>`;
 }
 $("revGrid").addEventListener("change",e=>{const t=e.target;if(!t.dataset.k)return;rev[t.dataset.k][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderRev();renderBud();renderSummary()})});
-$("revGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-st]");if(!b)return;rev.statut[+b.dataset.i]=b.dataset.st;markDirty();keep(renderRev)});
-const budSub=i=>CATS_BUD.reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
+$("revGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-st]");if(!b)return;rev.statut[+b.dataset.i]=b.dataset.st;markDirty();keep(()=>{renderRev();renderSummary()})});
+const LBL=()=>(book&&book.labels)||CATS_BUD;
+const budSub=i=>LBL().reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
 const budDime=i=>Math.round(((rev.e1[i]||0)+(rev.e2[i]||0))*10)/100;
 const budTot=i=>budSub(i)+budDime(i);
 function renderBud(){
-  const col=i=>CATS_BUD.reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
-  $("budGrid").innerHTML=`<thead><tr><th>Catégorie</th>${MOIS.map((m,i)=>`<th class="num"${i===month?' style="color:var(--ink)"':""}>${m.length>4?m.slice(0,4)+".":m}</th>`).join("")}<th class="num">Année</th><th></th></tr></thead><tbody>${
-    CATS_BUD.map((c,r)=>`<tr><td>${esc(c)}</td>${MOIS.map((_,i)=>`<td class="num">${cell(bud["r"+r][i],`data-r="${r}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(bud["r"+r].reduce((s,v)=>s+(v||0),0))}</td><td><button class="fill" type="button" data-fill="${r}">Toute l'année</button></td></tr>`).join("")
-  }</tbody><tfoot>${[["Sous-total",budSub],["Dîmes (10 % des entrées 1 et 2)",budDime],["Total dépenses",budTot]].map(([l,f],k)=>`<tr${k===2?' class="tot"':""}><td>${l}</td>${MOIS.map((_,i)=>`<td class="num">${eur(f(i))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+f(i),0))}</td><td></td></tr>`).join("")}</tfoot>`;
+    $("budGrid").innerHTML=`<thead><tr><th>Catégorie</th>${MOIS.map((m,i)=>`<th class="num"${i===month?' style="color:var(--ink)"':""}>${m.length>4?m.slice(0,4)+".":m}</th>`).join("")}<th class="num">Année</th><th></th></tr></thead><tbody>${
+    LBL().map((c,r)=>`<tr><td>${esc(c||"(ligne vide)")}</td>${MOIS.map((_,i)=>`<td class="num">${cell(bud["r"+r][i],`data-r="${r}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(bud["r"+r].reduce((s,v)=>s+(v||0),0))}</td><td><button class="fill" type="button" data-fill="${r}">Toute l'année</button></td></tr>`).join("")
+  }</tbody><tfoot><tr class="tot"><td>Total dépenses</td>${MOIS.map((_,i)=>`<td class="num">${eur(budTot(i))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+budTot(i),0))}</td><td></td></tr></tfoot>`;
 }
 $("budGrid").addEventListener("change",e=>{const t=e.target;if(t.dataset.r==null)return;bud["r"+t.dataset.r][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderBud();renderSummary()})});
 $("budGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-fill]");if(!b)return;const k="r"+b.dataset.fill;bud[k]=Array(12).fill(bud[k][month]);markDirty();renderBud();renderSummary()});
