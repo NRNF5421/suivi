@@ -27,7 +27,7 @@ h2{font:600 24px/1.15 Georgia,"Times New Roman",serif;margin:0 0 12px}
 .months button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .panel{background:var(--pan);padding:clamp(18px,3vw,32px) max(5vw,16px)}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:2px solid var(--ink)}
-.sav{display:flex;flex-wrap:wrap;margin-top:18px;border-top:2px solid var(--ink);max-width:720px}.sav .kpi{flex:1 1 0;border-right:1px solid var(--rule)}.sav .kpi:last-child{border-right:0}.sav .kpi[hidden]+.kpi{padding-left:0}.sav .kpi b{font-size:clamp(19px,2.6vw,28px)}
+.sav{display:flex;flex-wrap:wrap;margin-top:18px;border-top:2px solid var(--ink);max-width:720px}.sav .kpi{flex:1 1 0;border:0!important;padding:12px 16px 12px 0!important}.sav .kpi:not([hidden])~.kpi:not([hidden]){padding-left:16px!important;border-left:1px solid var(--rule)!important}.sav .kpi b{font-size:clamp(19px,2.6vw,28px)}
 .kpi{padding:12px 16px 12px 0;border-right:1px solid var(--rule)}.kpi:last-child{border:0}.kpi+.kpi{padding-left:16px}
 .kpi span{display:block;font-size:13px;color:var(--mut)}
 .kpi b{font:600 clamp(22px,3vw,32px)/1.1 Georgia,serif;white-space:nowrap}
@@ -72,7 +72,7 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
 .savebar.dirty .btn{background:var(--red);color:#fff}
 [hidden]{display:none!important}
 .scroll{overflow-x:auto}
-@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis .kpi{border-right:0!important}.kpis .kpi:nth-child(odd){padding-left:0!important;border-right:1px solid var(--rule)!important}.kpis .kpi:nth-child(even){padding-left:16px}.sav .kpi+.kpi{padding-left:12px}.sav .kpi{padding-right:12px}}
+@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis .kpi{border-right:0!important}.kpis .kpi:nth-child(odd){padding-left:0!important;border-right:1px solid var(--rule)!important}.kpis .kpi:nth-child(even){padding-left:16px}.sav .kpi:not([hidden])~.kpi:not([hidden]){padding-left:12px!important}.sav .kpi{padding-right:12px!important}}
 @media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:7.5em minmax(0,1fr) 5.5em;font-size:13px}
 .stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mut)}.stack td:empty{display:none}}
 @media(prefers-reduced-motion:no-preference){.bar .t i{transition:width .4s ease}}
@@ -111,7 +111,7 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
       <div><button class="btn" id="migrGo" type="button">Appliquer et enregistrer</button></div>
     </div>
     <div id="vLists" hidden style="display:grid;gap:8px;width:100%">
-      <p style="margin:0">Mettre à jour les listes déroulantes de ce fichier ? <b>PEL</b> et <b>Compte Neriyah</b> sont ajoutés aux catégories de dépenses (formulaire de saisie Excel compris), « Ass-mat » devient « Ass-mat /Garde » comme dans le Dashboard, « Projet Voyage » devient « Voyage » (dépenses déjà saisies comprises), une liste est ajoutée sur la colonne Catégorie des transactions et sur la ligne Validation, et « PEL » est ajouté au formulaire « Ajout de fonds ». Le fichier est enregistré aussitôt.</p>
+      <p style="margin:0">Mettre à jour les listes déroulantes de ce fichier (formulaires Excel compris) ? Ajout de <b>PEL</b> et <b>Compte Neriyah</b>, « Projet Voyage » devient « Voyage », « Ass-mat » devient « Ass-mat /Garde »<span id="lsAnn"></span>. Les dépenses déjà saisies sont reclassées. Le fichier est enregistré aussitôt.</p>
       <div><button class="btn" id="listsGo" type="button">Mettre à jour les listes</button></div>
     </div>
     <div id="vCreate" hidden style="display:grid;gap:10px;width:100%">
@@ -304,8 +304,11 @@ async function loadBook(buf){
     if(d==null&&lib==null&&cat==null&&prix==null)continue;
     deps.push({id:"x"+n,date:typeof d==="number"?serialToIso(d):"",libelle:lib==null?"":String(lib),categorie:cat==null?"":String(cat),prix:typeof prix==="number"?prix:0,sous:g("G")==null?"":String(g("G")),commentaire:g("H")==null?"":String(g("H")),cree:n});
   }
-  const combo=X.combo?{C14:readCell(X.combo,"C14",sst),C11:readCell(X.combo,"C11",sst)}:null;const dashG15=readCell(X.dash,"G15",sst);
-  return {entries,P,tblPath,X,rev,bud,deps,labels,combo,dashG15,extra:{}};
+  const comboList=X.combo?Array.from({length:13},(_,i)=>{const v=readCell(X.combo,"C"+(i+3),sst);return v==null||v===""?null:String(v)}):null;
+  const combo=X.combo?{C14:readCell(X.combo,"C14",sst),C11:readCell(X.combo,"C11",sst)}:null;const dashG15=readCell(X.dash,"G15",sst),dashA16=readCell(X.dash,"A16",sst);
+  let dashTbl=null;try{const dr=await txt(P.dash.replace(/([^/]+)$/,"_rels/$1.rels"));for(const m of dr.matchAll(/<Relationship [^>]*>/g)){if(/\/table"/.test(m[0])){const p=resolve(P.dash,m[0].match(/Target="([^"]+)"/)[1]);if((await txt(p)).includes('name="Tableau11"'))dashTbl=p}}}catch{}
+  P.dashTbl=dashTbl;X.dashTbl=dashTbl?await txt(dashTbl):null;
+  return {entries,P,tblPath,X,rev,bud,deps,labels,combo,comboList,dashG15,dashA16,extra:{}};
 }
 
 async function buildBook(B,rev,bud,deps){
@@ -326,7 +329,7 @@ async function buildBook(B,rev,bud,deps){
     const vals={C:d.date?isoToSerial(d.date):null,D:d.libelle||null,E:d.categorie||null,F:d.prix==null||d.date==null?null:+d.prix,G:d.sous||null,H:d.commentaire||null};
     for(const [c,v] of Object.entries(vals))tx=setCell(tx,c+n,v)}
   wb=wb.replace(/<calcPr([^>]*?)\s*\/>/,(m,a)=>`<calcPr${a.replace(/\sfullCalcOnLoad="\d"/,"")} fullCalcOnLoad="1"/>`);
-  const enc=new TextEncoder(),dec=new TextDecoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};if(B.P.combo&&B.X.combo)changed[B.P.combo]=B.X.combo;
+  const enc=new TextEncoder(),dec=new TextDecoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};if(B.P.combo&&B.X.combo)changed[B.P.combo]=B.X.combo;if(B.P.dashTbl&&B.X.dashTbl)changed[B.P.dashTbl]=B.X.dashTbl;
   let entries=B.entries;
   if(dropCalc&&entries.some(e=>e.name==="xl/calcChain.xml")){
     entries=entries.filter(e=>e.name!=="xl/calcChain.xml");
@@ -433,7 +436,7 @@ function bReplace(src,from,to){const f=typeof from==="string"?bytesOf(from):from
   return changed?Uint8Array.from(out):src}
 /* modifications du code : liste du formulaire étendue à C3:C15, « PEL » dans « Ajout de fonds », « Épargne » réparé (É = 0x83 en Mac Roman) */
 const VBA_EDITS={
-  UserForm1:[['Range("C3:C13")','Range("C3:C15")'],['"Projet Voyage"','"Voyage"'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]],
+  UserForm1:[['Range("C3:C13")','Range("C3:C" & Sheets("Combo").Cells(Sheets("Combo").Rows.Count, 3).End(xlUp).Row)'],['Range("C3:C15")','Range("C3:C" & Sheets("Combo").Cells(Sheets("Combo").Rows.Count, 3).End(xlUp).Row)'],['"Projet Voyage"','"Voyage"'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]],
   Form2_Ajout_Fond:[['"Loisirs", "Voiture")','"Loisirs", "Voiture", "PEL")'],['"Projet Voyage"','"Voyage"'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]]
 };
 function patchVba(bin){
@@ -462,7 +465,7 @@ function ensureCell(xml,ref,style){
 }
 const DV_AFTER=["hyperlinks","printOptions","pageMargins","pageSetup","headerFooter","rowBreaks","colBreaks","customProperties","cellWatches","ignoredErrors","smartTags","drawing","legacyDrawing","legacyDrawingHF","picture","oleObjects","controls","webPublishItems","tableParts","extLst"];
 function addValidation(xml,sqref,formula){
-  if(new RegExp(`<dataValidation [^>]*sqref="${sqref}"`).test(xml))return xml;
+  const ex=xml.match(new RegExp(`<dataValidation [^>]*sqref="${sqref}"[^>]*>[\\s\\S]*?</dataValidation>`));if(ex)return xml.replace(ex[0],ex[0].replace(/<formula1>[\s\S]*?<\/formula1>/,`<formula1>${formula}</formula1>`));
   const dv=`<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="${sqref}"><formula1>${formula}</formula1></dataValidation>`;
   if(xml.includes("</dataValidations>"))return xml.replace(/<dataValidations count="(\d+)"/,(m,n)=>`<dataValidations count="${+n+1}"`).replace("</dataValidations>",dv+"</dataValidations>");
   const tail=xml.indexOf("</sheetData>");let at=-1;
@@ -470,13 +473,36 @@ function addValidation(xml,sqref,formula){
   if(at<0)at=xml.lastIndexOf("</worksheet>");
   return xml.slice(0,at)+`<dataValidations count="1">${dv}</dataValidations>`+xml.slice(at);
 }
-const COMBO_LIST=[["C10","Ass-mat /Garde"],["C11","Voyage"],["C14","PEL"],["C15","Compte Neriyah"]];
-const needsLists=B=>B.combo!=null&&(B.combo.C14!=="PEL"||B.combo.C11==="Projet Voyage");
+const RENAME={"Ass-mat":"Ass-mat /Garde","Projet Voyage":"Voyage"};
+const TX_LIST="OFFSET(Combo!$C$3,0,0,COUNTA(Combo!$C$3:$C$15),1)";
+const hasPel=B=>B.labels.includes("PEL");
+const needsLists=B=>{if(!B.comboList)return false;const l=B.comboList;
+  return !l.includes("PEL")||!l.includes("Compte Neriyah")||l.some(v=>RENAME[v])||!B.X.tx.includes("OFFSET(Combo")||B.dashG15==="Projet Voyage"||
+    (hasPel(B)&&(l.includes("Nourriture Annaelle")||B.dashA16==="Nourriture Annaelle"))};
+/* retire une ligne du tableau « Budgeté / Dépensé / Solde » du Dashboard (colonnes A à D) et remonte les suivantes */
+function dashDropRow(B,row){
+  const t=B.X.dashTbl;if(!t)throw new Error("tableau du Dashboard introuvable");const last=+t.match(/ref="A\d+:D(\d+)"/)[1];
+  let x=B.X.dash;const adj=f=>f.replace(/(Dashboard!\$?A\$?)(\d+)/g,(m,p,n)=>+n>row&&+n<=last?p+(n-1):m);
+  for(let r=row;r<last;r++)for(const c of "ABCD"){
+    x=ensureCell(x,c+(r+1),null);x=ensureCell(x,c+r,null);
+    const src=x.match(cellRe(c+(r+1)))[0];
+    const moved=src.replace(`r="${c}${r+1}"`,`r="${c}${r}"`).replace(`ref="${c}${r+1}"`,`ref="${c}${r}"`).replace(/(<f[^>]*>)([\s\S]*?)(<\/f>)/,(m,o,f,e)=>o+adj(f)+e);
+    const tm=x.match(cellRe(c+r));x=x.slice(0,tm.index)+moved+x.slice(tm.index+tm[0].length)}
+  for(const c of "ABCD"){const tm=x.match(cellRe(c+last));x=x.slice(0,tm.index)+`<c r="${c}${last}"/>`+x.slice(tm.index+tm[0].length)}
+  const sh=ref=>ref.replace(/([A-D])(\d+)/g,(m,c,n)=>+n>row&&+n<=last?c+(n-1):m);
+  x=x.replace(/sqref="([^"]*)"/g,(m,v)=>`sqref="${v.split(" ").map(sh).join(" ")}"`);
+  B.X.dash=x;B.X.dashTbl=t.replace(new RegExp(`A(\\d+):D${last}`,"g"),`A$1:D${last-1}`);dropCalc=true;B.dashA16=null;
+}
 async function updateLists(B){
-  let combo=B.X.combo;for(const [ref,v] of COMBO_LIST){combo=ensureCell(combo,ref,"12");combo=setCell(combo,ref,v)}
-  B.X.combo=combo;B.combo.C14="PEL";B.combo.C11="Voyage";
+  const drop=hasPel(B);let list=B.comboList.filter(Boolean).map(v=>RENAME[v]||v);
+  if(drop)list=list.filter(v=>v!=="Nourriture Annaelle");
+  for(const v of ["PEL","Compte Neriyah"])if(!list.includes(v))list.push(v);
+  list=[...new Set(list)];if(list.length>13)throw new Error("liste Combo trop longue");
+  let combo=B.X.combo;for(let i=0;i<13;i++){const ref="C"+(i+3);combo=ensureCell(combo,ref,"12");combo=setCell(combo,ref,list[i]??null)}
+  B.X.combo=combo;B.comboList=Array.from({length:13},(_,i)=>list[i]??null);
   if(B.dashG15==="Projet Voyage"){B.X.dash=setCell(B.X.dash,"G15","Voyage");B.dashG15="Voyage"}
-  B.X.tx=addValidation(B.X.tx,"E2:E2000","Combo!$C$3:$C$15");
+  if(drop&&B.dashA16==="Nourriture Annaelle")dashDropRow(B,16);
+  B.X.tx=addValidation(B.X.tx,"E2:E2000",TX_LIST);
   B.X.dash=addValidation(B.X.dash,"B9:M9","Combo!$G$2:$G$3");
   const ve=B.entries.find(e=>e.name==="xl/vbaProject.bin");
   if(ve){const nb=patchVba(await entryBytes(ve));if(nb)B.extra["xl/vbaProject.bin"]=nb}
@@ -486,7 +512,7 @@ if(typeof document==="undefined"){}else{
 
 /* ================= Interface ================= */
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Voyage","PEL","Enveloppe Aide","Autres"];
+const CATS_DEP=["Nourriture et Hygiene","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Voyage","PEL","Enveloppe Aide","Autres"];
 const CATS_BUD=["Logement","Téléphone Eben","Téléphone Jenny","Électricité","Internet","Entretien & Reserve","Nourriture et Hygiene","Transport","Nouriture Enfants","Cpte Nériyah","Cpte Annaelle","Assurance","Cartes de crédit Eben","Cartes de crédit Jenny","Soins Perso Eben","Soins Perso Jenny","Enveloppe Aide","Epargne","Loisirs","Semences/ Offrandres","Voiture","Ass-mat / Garde","Autres","Voyage","Prêts"];
 const REV=[["e1","Entrée 1"],["e2","Entrée 2"],["autres","Autres"]];
 const $=id=>document.getElementById(id);
@@ -638,7 +664,7 @@ async function openItem(id,keepDraft=true){
       if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
       else{show("vActions","vDraft");$("drApply").onclick=()=>{applyDraft(dr,"Saisies reprises : l'enregistrement remplacera les modifications faites ailleurs.");show("vActions")};$("drDrop").onclick=()=>{ls.del("bud.draft");show("vActions")}}
     }
-    resetForm();renderAll();renderInbox();$("vMigr").hidden=!(YEAR>=2027&&!ls.get("bud.shared")&&needsMigration(book));$("vLists").hidden=!(!ls.get("bud.shared")&&needsLists(book));
+    setCats((book.comboList||[]).filter(Boolean).length?book.comboList.filter(Boolean):CATS_DEP);resetForm();renderAll();renderInbox();$("vMigr").hidden=!(YEAR>=2027&&!ls.get("bud.shared")&&needsMigration(book));$("vLists").hidden=!(!ls.get("bud.shared")&&needsLists(book));$("lsAnn").textContent=book.labels.includes("PEL")?", « Nourriture Annaelle » est retirée (ses dépenses passent en « Nourriture et Hygiene ») et sa ligne disparaît du Dashboard":"";
   }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
 }
 function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);markDirty();setStatus(msg);renderAll()}
@@ -661,7 +687,7 @@ async function upload(force){
 }
 $("saveBtn").addEventListener("click",()=>upload(false));
 $("listsGo").addEventListener("click",async()=>{if(!book)return;const b=$("listsGo");b.disabled=true;
-  try{await updateLists(book);let n=0;deps=deps.map(d=>{const c=d.categorie==="Projet Voyage",t=d.sous==="Projet Voyage";if(c||t)n++;return c||t?{...d,categorie:c?"Voyage":d.categorie,sous:t?"Voyage":d.sous}:d});markDirty();renderAll();$("vLists").hidden=true;await upload(false);if(n&&!dirty)setStatus(`Listes mises à jour, ${n} dépense${n>1?"s":""} « Projet Voyage » renommée${n>1?"s":""} en « Voyage ».`)}catch(e){info("Mise à jour impossible : "+e.message)}b.disabled=false});
+  try{const drop=book.labels.includes("PEL");await updateLists(book);let n=0;const rn=v=>RENAME[v]||(drop&&v==="Nourriture Annaelle"?"Nourriture et Hygiene":v);deps=deps.map(d=>{const c=rn(d.categorie),t=d.sous==="Projet Voyage"?"Voyage":d.sous;if(c!==d.categorie||t!==d.sous){n++;return {...d,categorie:c,sous:t}}return d});setCats(book.comboList.filter(Boolean));markDirty();renderAll();$("vLists").hidden=true;await upload(false);if(n&&!dirty)setStatus(`Listes mises à jour, ${n} dépense${n>1?"s":""} reclassée${n>1?"s":""}.`)}catch(e){info("Mise à jour impossible : "+e.message)}b.disabled=false});
 $("migrGo").addEventListener("click",async()=>{if(!book)return;migrateBook(book,bud);$("vMigr").hidden=true;markDirty();renderAll();await upload(false);if(!dirty)resetHist()});
 $("undoBtn").addEventListener("click",undo);
 document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!e.target.closest("input,select,textarea")&&book){e.preventDefault();undo()}});
@@ -699,7 +725,7 @@ function renderInbox(){
 $("inAdd").addEventListener("click",()=>{
   const all=jget("bud.inbox")||[],inbox=all.filter(x=>x.date.startsWith(YEAR+"-")),seen=jget("bud.seen")||[];
   for(const x of inbox){const dup=deps.some(d=>d.date===x.date&&d.libelle===x.libelle&&+d.prix===x.prix&&d.categorie===x.categorie);
-    if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:x.categorie==="Projet Voyage"?"Voyage":x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
+    if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:RENAME[x.categorie]||x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
   ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));const rest=all.filter(x=>!x.date.startsWith(YEAR+"-"));rest.length?ls.set("bud.inbox",JSON.stringify(rest)):ls.del("bud.inbox");markDirty();renderAll();renderInbox();
   setStatus(`${inbox.length} dépense${inbox.length>1?"s":""} ajoutée${inbox.length>1?"s":""} : enregistrez pour les écrire dans le fichier.`);
 });
@@ -794,7 +820,7 @@ function renderSummary(){
 }
 
 /* --- dépenses --- */
-$("dCat").innerHTML=CATS_DEP.map(c=>`<option>${esc(c)}</option>`).join("");
+const setCats=l=>{$("dCat").innerHTML=l.map(c=>`<option>${esc(c)}</option>`).join("")};setCats(CATS_DEP);
 function renderDeps(){
   $("depTitle").textContent=`Dépenses de ${MOIS[month].toLowerCase()}`;const md=monthDeps();
   $("depRows").innerHTML=md.length?md.map(x=>`<tr data-id="${esc(x.id)}" class="${x.id===editId?"edit":""}"><td style="white-space:nowrap">${esc(x.date.split("-").reverse().join("/"))}</td><td><button class="x" data-act="edit" style="color:var(--ink);text-align:left">${esc(x.libelle||"(sans libellé)")}</button></td><td>${esc(x.categorie)}</td><td>${esc(x.commentaire)}</td><td class="num">${eur(x.prix)}</td><td class="num"><button class="x" data-act="del">Supprimer</button></td></tr>`).join("")
