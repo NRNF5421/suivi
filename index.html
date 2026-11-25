@@ -111,7 +111,7 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
       <div><button class="btn" id="migrGo" type="button">Appliquer et enregistrer</button></div>
     </div>
     <div id="vLists" hidden style="display:grid;gap:8px;width:100%">
-      <p style="margin:0">Mettre à jour les listes déroulantes de ce fichier ? <b>PEL</b> et <b>Compte Neriyah</b> sont ajoutés aux catégories de dépenses (formulaire de saisie Excel compris), « Ass-mat » devient « Ass-mat /Garde » comme dans le Dashboard, une liste est ajoutée sur la colonne Catégorie des transactions et sur la ligne Validation, et « PEL » est ajouté au formulaire « Ajout de fonds ». Le fichier est enregistré aussitôt.</p>
+      <p style="margin:0">Mettre à jour les listes déroulantes de ce fichier ? <b>PEL</b> et <b>Compte Neriyah</b> sont ajoutés aux catégories de dépenses (formulaire de saisie Excel compris), « Ass-mat » devient « Ass-mat /Garde » comme dans le Dashboard, « Projet Voyage » devient « Voyage » (dépenses déjà saisies comprises), une liste est ajoutée sur la colonne Catégorie des transactions et sur la ligne Validation, et « PEL » est ajouté au formulaire « Ajout de fonds ». Le fichier est enregistré aussitôt.</p>
       <div><button class="btn" id="listsGo" type="button">Mettre à jour les listes</button></div>
     </div>
     <div id="vCreate" hidden style="display:grid;gap:10px;width:100%">
@@ -304,8 +304,8 @@ async function loadBook(buf){
     if(d==null&&lib==null&&cat==null&&prix==null)continue;
     deps.push({id:"x"+n,date:typeof d==="number"?serialToIso(d):"",libelle:lib==null?"":String(lib),categorie:cat==null?"":String(cat),prix:typeof prix==="number"?prix:0,sous:g("G")==null?"":String(g("G")),commentaire:g("H")==null?"":String(g("H")),cree:n});
   }
-  const combo=X.combo?{C14:readCell(X.combo,"C14",sst)}:null;
-  return {entries,P,tblPath,X,rev,bud,deps,labels,combo,extra:{}};
+  const combo=X.combo?{C14:readCell(X.combo,"C14",sst),C11:readCell(X.combo,"C11",sst)}:null;const dashG15=readCell(X.dash,"G15",sst);
+  return {entries,P,tblPath,X,rev,bud,deps,labels,combo,dashG15,extra:{}};
 }
 
 async function buildBook(B,rev,bud,deps){
@@ -433,8 +433,8 @@ function bReplace(src,from,to){const f=typeof from==="string"?bytesOf(from):from
   return changed?Uint8Array.from(out):src}
 /* modifications du code : liste du formulaire étendue à C3:C15, « PEL » dans « Ajout de fonds », « Épargne » réparé (É = 0x83 en Mac Roman) */
 const VBA_EDITS={
-  UserForm1:[['Range("C3:C13")','Range("C3:C15")'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]],
-  Form2_Ajout_Fond:[['"Loisirs", "Voiture")','"Loisirs", "Voiture", "PEL")'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]]
+  UserForm1:[['Range("C3:C13")','Range("C3:C15")'],['"Projet Voyage"','"Voyage"'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]],
+  Form2_Ajout_Fond:[['"Loisirs", "Voiture")','"Loisirs", "Voiture", "PEL")'],['"Projet Voyage"','"Voyage"'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]]
 };
 function patchVba(bin){
   const ents=cfbRead(bin),byPath={};
@@ -470,11 +470,12 @@ function addValidation(xml,sqref,formula){
   if(at<0)at=xml.lastIndexOf("</worksheet>");
   return xml.slice(0,at)+`<dataValidations count="1">${dv}</dataValidations>`+xml.slice(at);
 }
-const COMBO_LIST=[["C10","Ass-mat /Garde"],["C14","PEL"],["C15","Compte Neriyah"]];
-const needsLists=B=>B.combo!=null&&B.combo.C14!=="PEL";
+const COMBO_LIST=[["C10","Ass-mat /Garde"],["C11","Voyage"],["C14","PEL"],["C15","Compte Neriyah"]];
+const needsLists=B=>B.combo!=null&&(B.combo.C14!=="PEL"||B.combo.C11==="Projet Voyage");
 async function updateLists(B){
   let combo=B.X.combo;for(const [ref,v] of COMBO_LIST){combo=ensureCell(combo,ref,"12");combo=setCell(combo,ref,v)}
-  B.X.combo=combo;B.combo.C14="PEL";
+  B.X.combo=combo;B.combo.C14="PEL";B.combo.C11="Voyage";
+  if(B.dashG15==="Projet Voyage"){B.X.dash=setCell(B.X.dash,"G15","Voyage");B.dashG15="Voyage"}
   B.X.tx=addValidation(B.X.tx,"E2:E2000","Combo!$C$3:$C$15");
   B.X.dash=addValidation(B.X.dash,"B9:M9","Combo!$G$2:$G$3");
   const ve=B.entries.find(e=>e.name==="xl/vbaProject.bin");
@@ -485,7 +486,7 @@ if(typeof document==="undefined"){}else{
 
 /* ================= Interface ================= */
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Projet Voyage","PEL","Enveloppe Aide","Autres"];
+const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Voyage","PEL","Enveloppe Aide","Autres"];
 const CATS_BUD=["Logement","Téléphone Eben","Téléphone Jenny","Électricité","Internet","Entretien & Reserve","Nourriture et Hygiene","Transport","Nouriture Enfants","Cpte Nériyah","Cpte Annaelle","Assurance","Cartes de crédit Eben","Cartes de crédit Jenny","Soins Perso Eben","Soins Perso Jenny","Enveloppe Aide","Epargne","Loisirs","Semences/ Offrandres","Voiture","Ass-mat / Garde","Autres","Voyage","Prêts"];
 const REV=[["e1","Entrée 1"],["e2","Entrée 2"],["autres","Autres"]];
 const $=id=>document.getElementById(id);
@@ -660,7 +661,7 @@ async function upload(force){
 }
 $("saveBtn").addEventListener("click",()=>upload(false));
 $("listsGo").addEventListener("click",async()=>{if(!book)return;const b=$("listsGo");b.disabled=true;
-  try{await updateLists(book);$("vLists").hidden=true;await upload(false)}catch(e){info("Mise à jour impossible : "+e.message)}b.disabled=false});
+  try{await updateLists(book);let n=0;deps=deps.map(d=>{const c=d.categorie==="Projet Voyage",t=d.sous==="Projet Voyage";if(c||t)n++;return c||t?{...d,categorie:c?"Voyage":d.categorie,sous:t?"Voyage":d.sous}:d});markDirty();renderAll();$("vLists").hidden=true;await upload(false);if(n&&!dirty)setStatus(`Listes mises à jour, ${n} dépense${n>1?"s":""} « Projet Voyage » renommée${n>1?"s":""} en « Voyage ».`)}catch(e){info("Mise à jour impossible : "+e.message)}b.disabled=false});
 $("migrGo").addEventListener("click",async()=>{if(!book)return;migrateBook(book,bud);$("vMigr").hidden=true;markDirty();renderAll();await upload(false);if(!dirty)resetHist()});
 $("undoBtn").addEventListener("click",undo);
 document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!e.target.closest("input,select,textarea")&&book){e.preventDefault();undo()}});
@@ -698,7 +699,7 @@ function renderInbox(){
 $("inAdd").addEventListener("click",()=>{
   const all=jget("bud.inbox")||[],inbox=all.filter(x=>x.date.startsWith(YEAR+"-")),seen=jget("bud.seen")||[];
   for(const x of inbox){const dup=deps.some(d=>d.date===x.date&&d.libelle===x.libelle&&+d.prix===x.prix&&d.categorie===x.categorie);
-    if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
+    if(!dup)deps.push({id:"g"+(++seq),cree:seq,date:x.date,libelle:x.libelle,categorie:x.categorie==="Projet Voyage"?"Voyage":x.categorie,prix:x.prix,sous:x.sous,commentaire:x.commentaire||(x.from?"Saisi par "+x.from:"")});seen.push(x.gid)}
   ls.set("bud.seen",JSON.stringify(seen.slice(-1000)));const rest=all.filter(x=>!x.date.startsWith(YEAR+"-"));rest.length?ls.set("bud.inbox",JSON.stringify(rest)):ls.del("bud.inbox");markDirty();renderAll();renderInbox();
   setStatus(`${inbox.length} dépense${inbox.length>1?"s":""} ajoutée${inbox.length>1?"s":""} : enregistrez pour les écrire dans le fichier.`);
 });
