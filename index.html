@@ -257,9 +257,10 @@ function readCell(xml,ref,sst){
   if(t==="s")return sst[+v]??null; if(t==="str"||t==="e")return ent(v); if(t==="b")return v==="1";
   return +v;
 }
+let dropCalc=false;
 function setCell(xml,ref,val){
   const m=xml.match(cellRe(ref));if(!m)throw new Error(`Cellule ${ref} introuvable dans le classeur.`);
-  if(m[0].includes("<f"))throw new Error(`La cellule ${ref} contient une formule.`);
+  if(m[0].includes("<f"))dropCalc=true; /* formule remplacée par une valeur : la chaîne de calcul sera reconstruite par Excel */
   const s=(m[0].slice(0,m[0].indexOf(">")).match(/\ss="(\d+)"/)||[])[1];const sa=s?` s="${s}"`:"";
   let c;if(val==null||val==="")c=`<c r="${ref}"${sa}/>`;
   else if(typeof val==="number")c=`<c r="${ref}"${sa}><v>${val}</v></c>`;
@@ -300,9 +301,10 @@ async function loadBook(buf){
 
 async function buildBook(B,rev,bud,deps){
   let {dash,budg,tx,tbl,wb}=B.X;
-  [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>[...COLS].forEach((c,i)=>dash=setCell(dash,c+r,rev[k][i])));
-  [...COLS].forEach((c,i)=>dash=setCell(dash,c+"9",rev.statut[i]));
-  for(let r=0;r<25;r++)[...BCOLS].forEach((c,i)=>budg=setCell(budg,c+(r+3),bud["r"+r][i]));
+  /* seules les cellules modifiées sont réécrites : une formule saisie dans Excel reste intacte tant que sa valeur ne change pas */
+  [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>[...COLS].forEach((c,i)=>{if(rev[k][i]!==B.rev[k][i])dash=setCell(dash,c+r,rev[k][i])}));
+  [...COLS].forEach((c,i)=>{if(rev.statut[i]!==B.rev.statut[i])dash=setCell(dash,c+"9",rev.statut[i])});
+  for(let r=0;r<25;r++)[...BCOLS].forEach((c,i)=>{if(bud["r"+r][i]!==B.bud["r"+r][i])budg=setCell(budg,c+(r+3),bud["r"+r][i])});
   const list=[...deps].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.cree||0)-(b.cree||0));
   const last=+tbl.match(/ref="C1:H(\d+)"/)[1],need=Math.max(last,list.length+1);
   if(need>last){
@@ -315,8 +317,17 @@ async function buildBook(B,rev,bud,deps){
     const vals={C:d.date?isoToSerial(d.date):null,D:d.libelle||null,E:d.categorie||null,F:d.prix==null||d.date==null?null:+d.prix,G:d.sous||null,H:d.commentaire||null};
     for(const [c,v] of Object.entries(vals))tx=setCell(tx,c+n,v)}
   wb=wb.replace(/<calcPr([^>]*?)\s*\/>/,(m,a)=>`<calcPr${a.replace(/\sfullCalcOnLoad="\d"/,"")} fullCalcOnLoad="1"/>`);
-  const enc=new TextEncoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};
-  return zip(B.entries.map(e=>changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
+  const enc=new TextEncoder(),dec=new TextDecoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};
+  let entries=B.entries;
+  if(dropCalc&&entries.some(e=>e.name==="xl/calcChain.xml")){
+    entries=entries.filter(e=>e.name!=="xl/calcChain.xml");
+    for(const e of entries){
+      if(e.name==="xl/_rels/workbook.xml.rels")changed[e.name]=dec.decode(await entryBytes(e)).replace(/<Relationship [^>]*Target="[^"]*calcChain\.xml"[^>]*\/>/g,"");
+      if(e.name==="[Content_Types].xml")changed[e.name]=dec.decode(await entryBytes(e)).replace(/<Override [^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g,"");
+    }
+  }
+  dropCalc=false;
+  return zip(entries.map(e=>changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
 }
 /* Structure 2027 : « Nouriture Enfants » (ligne 11) devient « PEL », « Assurance » devient « Assurances ».
    La ligne est réutilisée pour ne décaler aucune formule ; le budget « Nourriture Annaelle » du Dashboard (qui lisait cette ligne) passe à 0. */
@@ -477,7 +488,7 @@ async function openItem(id,keepDraft=true){
     if(!r.ok)throw new Error("erreur "+r.status);
     const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
     book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name,drive:meta.parentReference?.driveId,rid:meta.id};$("shareBtn").hidden=!!ls.get("bud.shared");
-    rev=book.rev;bud=book.bud;deps=book.deps;setDirty(false);resetHist();
+    rev=structuredClone(book.rev);bud=structuredClone(book.bud);deps=structuredClone(book.deps);setDirty(false);resetHist();
     $("app").hidden=false;$("months").hidden=false;$("savebar").hidden=false;
     info(`${meta.name} ouvert.`);setStatus("À jour.");
     let dr=null;try{dr=JSON.parse(ls.get("bud.draft"))}catch{}
