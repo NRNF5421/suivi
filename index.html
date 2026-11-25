@@ -57,7 +57,7 @@ tr.edit td{background:var(--pan)}
 .grid input{min-height:38px;padding:4px 6px;text-align:right;width:6.5em;font-variant-numeric:tabular-nums}
 .grid th:first-child,.grid td:first-child{position:sticky;left:0;background:var(--bg);z-index:1;min-width:12em}
 .grid tr.edit td:first-child{background:var(--pan)}
-.grid tfoot td{font-weight:600;border-top:2px solid var(--ink)}
+.grid tfoot td{border-top:0}.grid tfoot tr:first-child td{border-top:2px solid var(--ink)}.grid tfoot tr.tot td{font-weight:600;border-top:1px solid var(--ink)}
 .grid .fill{border:0;background:none;color:var(--sl);cursor:pointer;font-size:13px;min-height:38px;white-space:nowrap;font-family:inherit}
 .seg{display:inline-flex;border:1px solid var(--rule)}
 .seg button{min-height:38px;padding:0 10px;border:0;background:transparent;color:var(--mut);font:500 13px inherit;font-family:inherit;cursor:pointer}
@@ -146,18 +146,18 @@ tr.edit td{background:var(--pan)}
 <section class="panel" aria-label="Bilan du mois"><div class="wrap">
   <div class="kpis">
     <div class="kpi"><span>Revenus</span><b id="kRev"></b></div>
-    <div class="kpi"><span>Budget prévu</span><b id="kBud"></b></div>
+    <div class="kpi"><span>Total dépenses prévues</span><b id="kBud"></b></div>
     <div class="kpi"><span>Dépenses saisies</span><b id="kDep"></b></div>
-    <div class="kpi"><span>Revenus − budget</span><b id="kRest"></b></div>
+    <div class="kpi"><span>Liquidité restante</span><b id="kRest"></b></div>
   </div>
   <div class="bars" id="bars"></div>
 </div></section>
 
 <main class="band"><div class="wrap">
   <div class="tabs" role="tablist">
-    <button role="tab" id="t-dep" aria-selected="true">Dépenses</button>
     <button role="tab" id="t-rev" aria-selected="false">Revenus</button>
     <button role="tab" id="t-bud" aria-selected="false">Budget</button>
+    <button role="tab" id="t-dep" aria-selected="true">Dépenses</button>
   </div>
   <section id="p-dep">
     <form class="add" id="fDep" autocomplete="off">
@@ -547,7 +547,7 @@ function renderMonths(){$("months").innerHTML=MOIS.map((m,i)=>`<button type="but
 $("months").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;month=+b.dataset.m;if(!editId)$("dDate").value=`2026-${String(month+1).padStart(2,"0")}-01`;renderAll()});
 const monthDeps=()=>deps.filter(d=>(d.date||"").slice(0,7)===`2026-${String(month+1).padStart(2,"0")}`).sort((a,b)=>a.date.localeCompare(b.date)||a.cree-b.cree);
 function renderSummary(){
-  const r=(rev.e1[month]||0)+(rev.e2[month]||0)+(rev.autres[month]||0),b=CATS_BUD.reduce((s,_,i)=>s+(bud["r"+i][month]||0),0);
+  const r=(rev.e1[month]||0)+(rev.e2[month]||0)+(rev.autres[month]||0),b=budTot(month);
   const md=monthDeps(),d=md.reduce((s,x)=>s+(+x.prix||0),0);
   $("kRev").textContent=eur(r);$("kBud").textContent=eur(b);$("kDep").textContent=eur(d);$("kRest").textContent=eur(r-b);$("kRest").className=r-b<0?"neg":"";
   const by={};md.forEach(x=>by[x.categorie]=(by[x.categorie]||0)+(+x.prix||0));
@@ -591,15 +591,18 @@ function renderRev(){
   const tot=i=>(rev.e1[i]||0)+(rev.e2[i]||0)+(rev.autres[i]||0);
   $("revGrid").innerHTML=`<thead><tr><th>Mois</th>${REV.map(r=>`<th class="num">${r[1]}</th>`).join("")}<th class="num">Total</th><th>Statut</th></tr></thead><tbody>${
     MOIS.map((m,i)=>`<tr${i===month?' class="edit"':""}><td>${m}</td>${REV.map(([k])=>`<td class="num">${cell(rev[k][i],`data-k="${k}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(tot(i))}</td><td><span class="seg">${["Validé","Prévision"].map(s=>`<button type="button" data-st="${s}" data-i="${i}" aria-pressed="${rev.statut[i]===s}">${s}</button>`).join("")}</span></td></tr>`).join("")
-  }</tbody><tfoot><tr><td>Année</td>${REV.map(([k])=>`<td class="num">${eur(rev[k].reduce((s,v)=>s+(v||0),0))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+tot(i),0))}</td><td></td></tr></tfoot>`;
+  }</tbody><tfoot><tr class="tot"><td>Année</td>${REV.map(([k])=>`<td class="num">${eur(rev[k].reduce((s,v)=>s+(v||0),0))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+tot(i),0))}</td><td></td></tr></tfoot>`;
 }
-$("revGrid").addEventListener("change",e=>{const t=e.target;if(!t.dataset.k)return;rev[t.dataset.k][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderRev();renderSummary()})});
+$("revGrid").addEventListener("change",e=>{const t=e.target;if(!t.dataset.k)return;rev[t.dataset.k][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderRev();renderBud();renderSummary()})});
 $("revGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-st]");if(!b)return;rev.statut[+b.dataset.i]=b.dataset.st;markDirty();keep(renderRev)});
+const budSub=i=>CATS_BUD.reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
+const budDime=i=>Math.round(((rev.e1[i]||0)+(rev.e2[i]||0))*10)/100;
+const budTot=i=>budSub(i)+budDime(i);
 function renderBud(){
   const col=i=>CATS_BUD.reduce((s,_,r)=>s+(bud["r"+r][i]||0),0);
   $("budGrid").innerHTML=`<thead><tr><th>Catégorie</th>${MOIS.map((m,i)=>`<th class="num"${i===month?' style="color:var(--ink)"':""}>${m.length>4?m.slice(0,4)+".":m}</th>`).join("")}<th class="num">Année</th><th></th></tr></thead><tbody>${
     CATS_BUD.map((c,r)=>`<tr><td>${esc(c)}</td>${MOIS.map((_,i)=>`<td class="num">${cell(bud["r"+r][i],`data-r="${r}" data-i="${i}"`)}</td>`).join("")}<td class="num">${eur(bud["r"+r].reduce((s,v)=>s+(v||0),0))}</td><td><button class="fill" type="button" data-fill="${r}">Toute l'année</button></td></tr>`).join("")
-  }</tbody><tfoot><tr><td>Sous-total</td>${MOIS.map((_,i)=>`<td class="num">${eur(col(i))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+col(i),0))}</td><td></td></tr></tfoot>`;
+  }</tbody><tfoot>${[["Sous-total",budSub],["Dîmes (10 % des entrées 1 et 2)",budDime],["Total dépenses",budTot]].map(([l,f],k)=>`<tr${k===2?' class="tot"':""}><td>${l}</td>${MOIS.map((_,i)=>`<td class="num">${eur(f(i))}</td>`).join("")}<td class="num">${eur(MOIS.reduce((s,_,i)=>s+f(i),0))}</td><td></td></tr>`).join("")}</tfoot>`;
 }
 $("budGrid").addEventListener("change",e=>{const t=e.target;if(t.dataset.r==null)return;bud["r"+t.dataset.r][+t.dataset.i]=num(t.value);markDirty();keep(()=>{renderBud();renderSummary()})});
 $("budGrid").addEventListener("click",e=>{const b=e.target.closest("button[data-fill]");if(!b)return;const k="r"+b.dataset.fill;bud[k]=Array(12).fill(bud[k][month]);markDirty();renderBud();renderSummary()});
