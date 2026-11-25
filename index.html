@@ -26,7 +26,8 @@ h2{font:600 24px/1.15 Georgia,"Times New Roman",serif;margin:0 0 12px}
 .months button{flex:none;min-height:44px;padding:0 14px;border:1px solid var(--rule);background:transparent;color:var(--ink);font:500 15px inherit;font-family:inherit;cursor:pointer}
 .months button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .panel{background:var(--pan);padding:clamp(18px,3vw,32px) max(5vw,16px)}
-.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:2px solid var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:2px solid var(--ink)}
+.sav{display:flex;flex-wrap:wrap;margin-top:18px;border-top:2px solid var(--ink);max-width:720px}.sav .kpi{flex:1 1 0;border-right:1px solid var(--rule)}.sav .kpi:last-child{border-right:0}.sav .kpi[hidden]+.kpi{padding-left:0}.sav .kpi b{font-size:clamp(19px,2.6vw,28px)}
 .kpi{padding:12px 16px 12px 0;border-right:1px solid var(--rule)}.kpi:last-child{border:0}.kpi+.kpi{padding-left:16px}
 .kpi span{display:block;font-size:13px;color:var(--mut)}
 .kpi b{font:600 clamp(22px,3vw,32px)/1.1 Georgia,serif;white-space:nowrap}
@@ -71,7 +72,7 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
 .savebar.dirty .btn{background:var(--red);color:#fff}
 [hidden]{display:none!important}
 .scroll{overflow-x:auto}
-@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{border-right:0!important}.kpi:nth-child(odd){padding-left:0!important;border-right:1px solid var(--rule)!important}.kpi:nth-child(even){padding-left:16px}}
+@media(max-width:900px){form.add{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis .kpi{border-right:0!important}.kpis .kpi:nth-child(odd){padding-left:0!important;border-right:1px solid var(--rule)!important}.kpis .kpi:nth-child(even){padding-left:16px}.sav .kpi+.kpi{padding-left:12px}.sav .kpi{padding-right:12px}}
 @media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:7.5em minmax(0,1fr) 5.5em;font-size:13px}
 .stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mut)}.stack td:empty{display:none}}
 @media(prefers-reduced-motion:no-preference){.bar .t i{transition:width .4s ease}}
@@ -109,6 +110,10 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
             <p style="margin:0">Ce fichier contient encore « Nouriture Enfants » et « Assurance ». Remplacer par <b>PEL</b> et <b>Assurances</b> ? Les montants « Nouriture Enfants » sont effacés et le budget « Nourriture Annaelle » du Dashboard passe à 0. Le fichier est enregistré aussitôt.</p>
       <div><button class="btn" id="migrGo" type="button">Appliquer et enregistrer</button></div>
     </div>
+    <div id="vLists" hidden style="display:grid;gap:8px;width:100%">
+      <p style="margin:0">Mettre à jour les listes déroulantes de ce fichier ? <b>PEL</b> et <b>Compte Neriyah</b> sont ajoutés aux catégories de dépenses (formulaire de saisie Excel compris), « Ass-mat » devient « Ass-mat /Garde » comme dans le Dashboard, une liste est ajoutée sur la colonne Catégorie des transactions et sur la ligne Validation, et « PEL » est ajouté au formulaire « Ajout de fonds ». Le fichier est enregistré aussitôt.</p>
+      <div><button class="btn" id="listsGo" type="button">Mettre à jour les listes</button></div>
+    </div>
     <div id="vCreate" hidden style="display:grid;gap:10px;width:100%">
       <p style="margin:0" id="crTitle"></p>
       <label style="display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="crBud" checked style="width:22px;min-height:22px">Reprendre les montants du budget, mois par mois</label>
@@ -131,6 +136,11 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="drApply" type="button">Reprendre ces saisies</button><button class="btn ghost" id="drDrop" type="button">Les oublier</button></div>
     </div>
   </div>
+  <section class="sav" id="sav" aria-label="Épargne des mois validés" hidden>
+    <div class="kpi" id="kVoyBox"><span>Voyage</span><b id="kVoy"></b></div>
+    <div class="kpi" id="kPelBox"><span>PEL</span><b id="kPel"></b></div>
+    <div class="kpi" id="kEpaBox"><span>Epargne</span><b id="kEpa"></b></div>
+  </section>
   <nav class="months" id="months" aria-label="Mois" hidden></nav>
 </div></header>
 
@@ -162,8 +172,6 @@ tbody tr:nth-child(even) td,.grid tbody tr:nth-child(even) td:first-child{backgr
     <div class="kpi"><span>Total dépenses prévues</span><b id="kBud"></b></div>
     <div class="kpi"><span>Dépenses saisies</span><b id="kDep"></b></div>
     <div class="kpi"><span>Liquidité restante</span><b id="kRest"></b></div>
-    <div class="kpi" id="kPelBox"><span>PEL · mois validés</span><b id="kPel"></b></div>
-    <div class="kpi" id="kVoyBox"><span>Voyage · mois validés</span><b id="kVoy"></b></div>
   </div>
   <div class="bars" id="bars"></div>
 </div></section>
@@ -279,12 +287,12 @@ async function loadBook(buf){
   const relT=id=>resolve("xl/workbook.xml",(rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)||[])[1]);
   const sheetPath=name=>{const m=[...wb.matchAll(/<sheet [^>]*>/g)].map(x=>x[0]).find(s=>ent((s.match(/name="([^"]*)"/)||[])[1]||"")===name);
     if(!m)throw new Error(`Onglet « ${name} » introuvable : est-ce bien un fichier de budget ?`);return relT(m.match(/r:id="([^"]+)"/)[1])};
-  const P={dash:sheetPath("Dashboard"),budg:sheetPath("Budget Dépenses"),tx:sheetPath("Transaction")};
+  const P={dash:sheetPath("Dashboard"),budg:sheetPath("Budget Dépenses"),tx:sheetPath("Transaction")};try{P.combo=sheetPath("Combo")}catch{P.combo=null}
   const txRels=await txt(P.tx.replace(/([^/]+)$/,"_rels/$1.rels"));
   let tblPath=null;for(const m of txRels.matchAll(/<Relationship [^>]*>/g)){if(/\/table"/.test(m[0])){const p=resolve(P.tx,m[0].match(/Target="([^"]+)"/)[1]);if((await txt(p)).includes('name="Tableau3"'))tblPath=p}}
   if(!tblPath)throw new Error("Tableau des transactions introuvable.");
   const sst=byName["xl/sharedStrings.xml"]?[...(await txt("xl/sharedStrings.xml")).matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m=>texts(m[1])):[];
-  const X={wb,dash:await txt(P.dash),budg:await txt(P.budg),tx:await txt(P.tx),tbl:await txt(tblPath)};
+  const X={wb,dash:await txt(P.dash),budg:await txt(P.budg),tx:await txt(P.tx),tbl:await txt(tblPath),combo:P.combo?await txt(P.combo):null};
   const num=v=>typeof v==="number"?Math.round(v*100)/100:null;
   const rev={e1:[],e2:[],autres:[],statut:[]};
   [["e1",5],["e2",6],["autres",7]].forEach(([k,r])=>{for(const c of COLS)rev[k].push(num(readCell(X.dash,c+r,sst)))});
@@ -296,7 +304,8 @@ async function loadBook(buf){
     if(d==null&&lib==null&&cat==null&&prix==null)continue;
     deps.push({id:"x"+n,date:typeof d==="number"?serialToIso(d):"",libelle:lib==null?"":String(lib),categorie:cat==null?"":String(cat),prix:typeof prix==="number"?prix:0,sous:g("G")==null?"":String(g("G")),commentaire:g("H")==null?"":String(g("H")),cree:n});
   }
-  return {entries,P,tblPath,X,rev,bud,deps,labels};
+  const combo=X.combo?{C14:readCell(X.combo,"C14",sst)}:null;
+  return {entries,P,tblPath,X,rev,bud,deps,labels,combo,extra:{}};
 }
 
 async function buildBook(B,rev,bud,deps){
@@ -317,7 +326,7 @@ async function buildBook(B,rev,bud,deps){
     const vals={C:d.date?isoToSerial(d.date):null,D:d.libelle||null,E:d.categorie||null,F:d.prix==null||d.date==null?null:+d.prix,G:d.sous||null,H:d.commentaire||null};
     for(const [c,v] of Object.entries(vals))tx=setCell(tx,c+n,v)}
   wb=wb.replace(/<calcPr([^>]*?)\s*\/>/,(m,a)=>`<calcPr${a.replace(/\sfullCalcOnLoad="\d"/,"")} fullCalcOnLoad="1"/>`);
-  const enc=new TextEncoder(),dec=new TextDecoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};
+  const enc=new TextEncoder(),dec=new TextDecoder(),changed={[B.P.dash]:dash,[B.P.budg]:budg,[B.P.tx]:tx,[B.tblPath]:tbl,"xl/workbook.xml":wb};if(B.P.combo&&B.X.combo)changed[B.P.combo]=B.X.combo;
   let entries=B.entries;
   if(dropCalc&&entries.some(e=>e.name==="xl/calcChain.xml")){
     entries=entries.filter(e=>e.name!=="xl/calcChain.xml");
@@ -327,7 +336,7 @@ async function buildBook(B,rev,bud,deps){
     }
   }
   dropCalc=false;
-  return zip(entries.map(e=>changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
+  return zip(entries.map(e=>B.extra&&B.extra[e.name]?{...e,data:B.extra[e.name]}:changed[e.name]!=null?{...e,data:enc.encode(changed[e.name])}:{...e}));
 }
 /* Structure 2027 : « Nouriture Enfants » (ligne 11) devient « PEL », « Assurance » devient « Assurances ».
    La ligne est réutilisée pour ne décaler aucune formule ; le budget « Nourriture Annaelle » du Dashboard (qui lisait cette ligne) passe à 0. */
@@ -340,12 +349,143 @@ function migrateBook(B,bud){
   }
   if(B.labels[11]==="Assurance"){B.X.budg=setCell(B.X.budg,"B14","Assurances");B.labels[11]="Assurances"}
 }
-window.__budget={unzip,loadBook,buildBook,migrateBook,needsMigration};
+/* ================= Listes déroulantes et macros (PEL) ================= */
+/* --- Fichier composé (vbaProject.bin) : lecture / écriture --- */
+function cfbRead(u){
+  const v=new DataView(u.buffer,u.byteOffset,u.byteLength),ss=1<<v.getUint16(30,true),mss=1<<v.getUint16(32,true);
+  const nFat=v.getUint32(44,true),fDir=v.getUint32(48,true),cut=v.getUint32(56,true),fMini=v.getUint32(60,true),fDifat=v.getUint32(68,true),nDifat=v.getUint32(72,true);
+  const sec=i=>u.subarray((i+1)*ss,(i+2)*ss);const difat=[];for(let k=0;k<109;k++)difat.push(v.getUint32(76+4*k,true));
+  let nx=fDifat;for(let k=0;k<nDifat;k++){const s=new DataView(sec(nx).slice().buffer);for(let j=0;j<ss/4-1;j++)difat.push(s.getUint32(4*j,true));nx=s.getUint32(ss-4,true)}
+  const fat=[];for(const i of difat.slice(0,nFat)){const s=new DataView(sec(i).slice().buffer);for(let j=0;j<ss/4;j++)fat.push(s.getUint32(4*j,true))}
+  const chain=(st,t)=>{const o=[];let g=0;while(st<0xFFFFFFFA&&g++<1e6){o.push(st);st=t[st]}return o};
+  const cat=parts=>{const o=new Uint8Array(parts.reduce((a,p)=>a+p.length,0));let p=0;for(const x of parts){o.set(x,p);p+=x.length}return o};
+  const read=st=>cat(chain(st,fat).map(sec));
+  const dir=read(fDir),dv=new DataView(dir.buffer),ents=[];
+  for(let o=0;o+128<=dir.length;o+=128){const nl=dv.getUint16(o+64,true);let name="";for(let j=0;j<Math.max(nl-2,0);j+=2)name+=String.fromCharCode(dv.getUint16(o+j,true));
+    ents.push({name,type:dir[o+66],color:dir[o+67],l:dv.getUint32(o+68,true),r:dv.getUint32(o+72,true),c:dv.getUint32(o+76,true),meta:dir.slice(o+80,o+116),start:dv.getUint32(o+116,true),size:dv.getUint32(o+120,true)})}
+  const mini=ents[0].start<0xFFFFFFFA?read(ents[0].start):new Uint8Array(0);const mfat=[];
+  for(const i of chain(fMini,fat)){const s=new DataView(sec(i).slice().buffer);for(let j=0;j<ss/4;j++)mfat.push(s.getUint32(4*j,true))}
+  for(const e of ents)if(e.type===2)e.data=e.size<cut?cat(chain(e.start,mfat).map(i=>mini.subarray(i*mss,(i+1)*mss))).slice(0,e.size):read(e.start).slice(0,e.size);
+  return ents;
+}
+function cfbWrite(ents){
+  const SS=512,MS=64,CUT=4096,END=0xFFFFFFFE,FREE=0xFFFFFFFF;
+  const big=[],mini=[];let mpos=0;
+  for(const e of ents)if(e.type===2){if(e.data.length>=CUT)big.push(e);else if(e.data.length){e.start=mpos;mpos+=Math.ceil(e.data.length/MS);mini.push(e)}else e.start=END;e.size=e.data.length}
+  const mfat=new Array(mpos).fill(FREE);for(const e of mini){const n=Math.ceil(e.size/MS);for(let k=0;k<n;k++)mfat[e.start+k]=k===n-1?END:e.start+k+1}
+  const miniBytes=mpos*MS,secs=[];let next=0;const alloc=n=>{const s=next;next+=n;return s};
+  for(const e of big){const n=Math.ceil(e.size/SS);e.start=alloc(n);secs.push([e.start,n])}
+  const nMs=Math.ceil(miniBytes/SS),msStart=nMs?alloc(nMs):END;if(nMs)secs.push([msStart,nMs]);
+  const nMf=Math.ceil(mfat.length*4/SS),mfStart=nMf?alloc(nMf):END;if(nMf)secs.push([mfStart,nMf]);
+  const nDir=Math.ceil(ents.length*128/SS),dirStart=alloc(nDir);secs.push([dirStart,nDir]);
+  let nFat=1;while(Math.ceil((next+nFat)*4/SS)>nFat)nFat++;if(nFat>109)throw new Error("macros trop volumineuses");
+  const fatStart=alloc(nFat),fat=new Array(nFat*SS/4).fill(FREE);
+  for(const [s,n] of secs)for(let k=0;k<n;k++)fat[s+k]=k===n-1?END:s+k+1;for(let k=0;k<nFat;k++)fat[fatStart+k]=0xFFFFFFFD;
+  const out=new Uint8Array((1+next)*SS),ov=new DataView(out.buffer),put=(sec,bytes)=>out.set(bytes,(sec+1)*SS);
+  for(const e of big)put(e.start,e.data);
+  const ms=new Uint8Array(nMs*SS);for(const e of mini)ms.set(e.data,e.start*MS);if(nMs)put(msStart,ms);
+  if(nMf){const b=new Uint8Array(nMf*SS).fill(0xFF),bv=new DataView(b.buffer);mfat.forEach((x,i)=>bv.setUint32(4*i,x,true));put(mfStart,b)}
+  const d=new Uint8Array(nDir*SS),dv=new DataView(d.buffer);
+  for(let i=0;i<nDir*SS/128;i++){const o=i*128,e=ents[i];
+    if(!e){dv.setUint32(o+68,FREE,true);dv.setUint32(o+72,FREE,true);dv.setUint32(o+76,FREE,true);continue}
+    for(let j=0;j<e.name.length;j++)dv.setUint16(o+2*j,e.name.charCodeAt(j),true);dv.setUint16(o+64,(e.name.length+1)*2,true);
+    d[o+66]=e.type;d[o+67]=e.color;dv.setUint32(o+68,e.l,true);dv.setUint32(o+72,e.r,true);dv.setUint32(o+76,e.c,true);d.set(e.meta,o+80);
+    const st=e.type===5?(nMs?msStart:END):e.type===2?e.start:0,sz=e.type===5?miniBytes:e.type===2?e.size:0;dv.setUint32(o+116,st,true);dv.setUint32(o+120,sz,true)}
+  put(dirStart,d);
+  const fb=new Uint8Array(nFat*SS),fv=new DataView(fb.buffer);fat.forEach((x,i)=>fv.setUint32(4*i,x,true));put(fatStart,fb);
+  [0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1].forEach((b,i)=>out[i]=b);
+  ov.setUint16(24,0x3E,true);ov.setUint16(26,3,true);ov.setUint16(28,0xFFFE,true);ov.setUint16(30,9,true);ov.setUint16(32,6,true);
+  ov.setUint32(44,nFat,true);ov.setUint32(48,dirStart,true);ov.setUint32(56,CUT,true);ov.setUint32(60,mfStart,true);ov.setUint32(64,nMf,true);
+  ov.setUint32(68,END,true);ov.setUint32(72,0,true);for(let k=0;k<109;k++)ov.setUint32(76+4*k,k<nFat?fatStart+k:FREE,true);
+  return out;
+}
+/* --- Compression MS-OVBA du code des macros --- */
+function ovbaDec(b){
+  const out=[];let i=1;
+  while(i<b.length){const h=b[i]|(b[i+1]<<8),size=(h&0xFFF)+3,end=Math.min(i+size,b.length),comp=h>>15;let j=i+2;const start=out.length;
+    if(!comp){for(;j<end;j++)out.push(b[j])}
+    else while(j<end){const f=b[j++];for(let bit=0;bit<8&&j<end;bit++){
+      if(!(f&(1<<bit)))out.push(b[j++]);
+      else{const t=b[j]|(b[j+1]<<8);j+=2;const dp=out.length-start;let bc=4;while((1<<bc)<dp)bc++;const lm=0xFFFF>>bc,len=(t&lm)+3,off=(t>>(16-bc))+1;for(let k=0;k<len;k++)out.push(out[out.length-off])}}}
+    i=end}
+  return Uint8Array.from(out);
+}
+function ovbaComp(d){
+  const out=[1];let pos=0;
+  while(pos<d.length){
+    const cs=pos,ce=Math.min(d.length,pos+4096),hp=out.length;out.push(0,0);
+    while(pos<ce){const fp=out.length;out.push(0);let flags=0;
+      for(let bit=0;bit<8&&pos<ce;bit++){
+        const diff=pos-cs;let bc=4;while((1<<bc)<diff)bc++;const maxLen=(0xFFFF>>bc)+3,maxOff=1<<bc;
+        let best=0,bestOff=0;for(let c=pos-1;c>=cs&&pos-c<=maxOff;c--){let l=0;while(pos+l<ce&&l<maxLen&&d[c+l]===d[pos+l])l++;if(l>best){best=l;bestOff=pos-c;if(l===maxLen)break}}
+        if(best>=3){const t=((bestOff-1)<<(16-bc))|(best-3);out.push(t&255,t>>8);flags|=1<<bit;pos+=best}else out.push(d[pos++])}
+      out[fp]=flags}
+    let size=out.length-hp;
+    if(size-2>4096){out.length=hp;const h=0x3FFF;out.push(h&255,h>>8);for(let k=cs;k<cs+4096;k++)out.push(d[k]??0);pos=cs+4096}
+    else{const h=0xB000|(size-3);out[hp]=h&255;out[hp+1]=h>>8}
+  }
+  return Uint8Array.from(out);
+}
+const bytesOf=s=>Uint8Array.from([...s].map(c=>c.charCodeAt(0)));
+function bReplace(src,from,to){const f=typeof from==="string"?bytesOf(from):from,t=typeof to==="string"?bytesOf(to):to;let changed=false;const out=[];
+  for(let i=0;i<src.length;){let ok=i+f.length<=src.length;for(let k=0;ok&&k<f.length;k++)if(src[i+k]!==f[k])ok=false;
+    if(ok){out.push(...t);i+=f.length;changed=true}else out.push(src[i++])}
+  return changed?Uint8Array.from(out):src}
+/* modifications du code : liste du formulaire étendue à C3:C15, « PEL » dans « Ajout de fonds », « Épargne » réparé (É = 0x83 en Mac Roman) */
+const VBA_EDITS={
+  UserForm1:[['Range("C3:C13")','Range("C3:C15")'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]],
+  Form2_Ajout_Fond:[['"Loisirs", "Voiture")','"Loisirs", "Voiture", "PEL")'],[Uint8Array.from([0x22,0xCA,...bytesOf('pargne"')]),Uint8Array.from([0x22,0x83,...bytesOf('pargne"')])]]
+};
+function patchVba(bin){
+  const ents=cfbRead(bin),byPath={};
+  const walk=(i,p)=>{if(i===0xFFFFFFFF||i>=ents.length)return;const e=ents[i];walk(e.l,p);const q=p+"/"+e.name;byPath[q]=e;if(e.type===1||e.type===5)walk(e.c,q);walk(e.r,p)};walk(ents[0].c,"");
+  const dirE=byPath["/VBA/dir"],vp=byPath["/VBA/_VBA_PROJECT"];if(!dirE||!vp)throw new Error("macros illisibles");
+  const dir=ovbaDec(dirE.data),dv=new DataView(dir.buffer);const mods=[];let cur=null;
+  for(let i=0;i+6<=dir.length;){const id=dv.getUint16(i,true);let sz=dv.getUint32(i+2,true);if(id===9)sz=6;const val=dir.subarray(i+6,i+6+sz);
+    if(id===0x1A)cur={stream:String.fromCharCode(...val)};if(id===0x31&&cur){cur.off=new DataView(val.slice().buffer).getUint32(0,true);mods.push(cur)}i+=6+sz}
+  let changed=false;
+  for(const m of mods){const ed=VBA_EDITS[m.stream];const e=byPath["/VBA/"+m.stream];if(!ed||!e)continue;
+    let src=ovbaDec(e.data.subarray(m.off));const before=src;for(const [a,b] of ed)src=bReplace(src,a,b);
+    if(src!==before){const c=ovbaComp(src),n=new Uint8Array(m.off+c.length);n.set(e.data.subarray(0,m.off));n.set(c,m.off);e.data=n;changed=true}}
+  if(!changed)return null;
+  const p=vp.data.slice();p[2]=0xFF;p[3]=0xFF;vp.data=p; /* version inconnue : Excel recompile les macros depuis le code modifié */
+  return cfbWrite(ents);
+}
+/* --- Feuilles : liste Combo, listes déroulantes --- */
+function ensureCell(xml,ref,style){
+  if(cellRe(ref).test(xml))return xml;const row=ref.match(/\d+/)[0],col=ref.match(/[A-Z]+/)[0];
+  const rm=xml.match(new RegExp(`<row r="${row}"[^>]*?(?:/>|>[\\s\\S]*?</row>)`));if(!rm)throw new Error(`Ligne ${row} introuvable.`);
+  const cn=s=>[...s].reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);let r=rm[0];const cell=`<c r="${ref}"${style?` s="${style}"`:""}/>`;
+  if(r.endsWith("/>")&&!r.includes("</row>"))r=r.slice(0,-2)+">"+cell+"</row>";
+  else{const cs=[...r.matchAll(/<c r="([A-Z]+)\d+"/g)];const after=cs.find(m=>cn(m[1])>cn(col));const at=after?after.index:r.lastIndexOf("</row>");r=r.slice(0,at)+cell+r.slice(at)}
+  return xml.replace(rm[0],r);
+}
+const DV_AFTER=["hyperlinks","printOptions","pageMargins","pageSetup","headerFooter","rowBreaks","colBreaks","customProperties","cellWatches","ignoredErrors","smartTags","drawing","legacyDrawing","legacyDrawingHF","picture","oleObjects","controls","webPublishItems","tableParts","extLst"];
+function addValidation(xml,sqref,formula){
+  if(new RegExp(`<dataValidation [^>]*sqref="${sqref}"`).test(xml))return xml;
+  const dv=`<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="${sqref}"><formula1>${formula}</formula1></dataValidation>`;
+  if(xml.includes("</dataValidations>"))return xml.replace(/<dataValidations count="(\d+)"/,(m,n)=>`<dataValidations count="${+n+1}"`).replace("</dataValidations>",dv+"</dataValidations>");
+  const tail=xml.indexOf("</sheetData>");let at=-1;
+  for(const t of DV_AFTER){const k=xml.indexOf("<"+t,tail);if(k>=0&&(at<0||k<at))at=k}
+  if(at<0)at=xml.lastIndexOf("</worksheet>");
+  return xml.slice(0,at)+`<dataValidations count="1">${dv}</dataValidations>`+xml.slice(at);
+}
+const COMBO_LIST=[["C10","Ass-mat /Garde"],["C14","PEL"],["C15","Compte Neriyah"]];
+const needsLists=B=>B.combo!=null&&B.combo.C14!=="PEL";
+async function updateLists(B){
+  let combo=B.X.combo;for(const [ref,v] of COMBO_LIST){combo=ensureCell(combo,ref,"12");combo=setCell(combo,ref,v)}
+  B.X.combo=combo;B.combo.C14="PEL";
+  B.X.tx=addValidation(B.X.tx,"E2:E2000","Combo!$C$3:$C$15");
+  B.X.dash=addValidation(B.X.dash,"B9:M9","Combo!$G$2:$G$3");
+  const ve=B.entries.find(e=>e.name==="xl/vbaProject.bin");
+  if(ve){const nb=patchVba(await entryBytes(ve));if(nb)B.extra["xl/vbaProject.bin"]=nb}
+}
+window.__budget={unzip,loadBook,buildBook,migrateBook,needsMigration,updateLists,needsLists,patchVba,cfbRead,cfbWrite,ovbaDec,ovbaComp};
 if(typeof document==="undefined"){}else{
 
 /* ================= Interface ================= */
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Projet Voyage","Enveloppe Aide","Autres"];
+const CATS_DEP=["Nourriture et Hygiene","Nourriture Annaelle","Provisions & reserve","Compte Annaelle","Compte Neriyah","Semence","Épargne","Loisirs","Voiture","Ass-mat /Garde","Projet Voyage","PEL","Enveloppe Aide","Autres"];
 const CATS_BUD=["Logement","Téléphone Eben","Téléphone Jenny","Électricité","Internet","Entretien & Reserve","Nourriture et Hygiene","Transport","Nouriture Enfants","Cpte Nériyah","Cpte Annaelle","Assurance","Cartes de crédit Eben","Cartes de crédit Jenny","Soins Perso Eben","Soins Perso Jenny","Enveloppe Aide","Epargne","Loisirs","Semences/ Offrandres","Voiture","Ass-mat / Garde","Autres","Voyage","Prêts"];
 const REV=[["e1","Entrée 1"],["e2","Entrée 2"],["autres","Autres"]];
 const $=id=>document.getElementById(id);
@@ -459,6 +599,7 @@ async function createYear(from){
     const nBud={};for(let r=0;r<25;r++)nBud["r"+r]=keepBud?[...B.bud["r"+r]]:z();
     try{B.X.dash=setCell(B.X.dash,"C12","Janvier")}catch{}
     if(YEAR>=2027&&needsMigration(B))migrateBook(B,nBud);
+    if(needsLists(B))await updateLists(B);
     const blob=await buildBook(B,nRev,nBud,[]);
     const r=await graph(`/me/drive/items/${encodeURIComponent(parent)}:/${encodeURIComponent(fname(YEAR))}:/content?@microsoft.graph.conflictBehavior=fail`,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:blob});
     if(r.status===409){const ex=await folderFiles().catch(()=>null);const f=ex&&fileFor(ex,YEAR);if(f){ls.set(IK(),f.id);await openItem(f.id);btn.disabled=false;return}throw new Error("un fichier de ce nom existe déjà")}if(!r.ok)throw new Error("erreur "+r.status);
@@ -489,14 +630,14 @@ async function openItem(id,keepDraft=true){
     const meta=await r.json(),d=await fetch(meta["@microsoft.graph.downloadUrl"]);if(!d.ok)throw new Error("téléchargement impossible");
     book=await loadBook(await d.arrayBuffer());item={id,eTag:meta.eTag,name:meta.name,drive:meta.parentReference?.driveId,rid:meta.id};$("shareBtn").hidden=!!ls.get("bud.shared");
     rev=structuredClone(book.rev);bud=structuredClone(book.bud);deps=structuredClone(book.deps);setDirty(false);resetHist();
-    $("app").hidden=false;$("months").hidden=false;$("savebar").hidden=false;
+    $("app").hidden=false;$("months").hidden=false;$("sav").hidden=false;$("savebar").hidden=false;
     info(`${meta.name} ouvert.`);setStatus("À jour.");
     let dr=null;try{dr=JSON.parse(ls.get("bud.draft"))}catch{}
     if(keepDraft&&dr&&dr.id===id){
       if(dr.eTag===meta.eTag)applyDraft(dr,"Vos saisies non enregistrées ont été restaurées.");
       else{show("vActions","vDraft");$("drApply").onclick=()=>{applyDraft(dr,"Saisies reprises : l'enregistrement remplacera les modifications faites ailleurs.");show("vActions")};$("drDrop").onclick=()=>{ls.del("bud.draft");show("vActions")}}
     }
-    resetForm();renderAll();renderInbox();$("vMigr").hidden=!(YEAR>=2027&&!ls.get("bud.shared")&&needsMigration(book));
+    resetForm();renderAll();renderInbox();$("vMigr").hidden=!(YEAR>=2027&&!ls.get("bud.shared")&&needsMigration(book));$("vLists").hidden=!(!ls.get("bud.shared")&&needsLists(book));
   }catch(e){if(!e.quiet){book=null;info("Impossible d'ouvrir le fichier : "+e.message)}}
 }
 function applyDraft(dr,msg){rev=dr.rev;bud=dr.bud;deps=dr.deps;seq=Math.max(seq,dr.seq||0);markDirty();setStatus(msg);renderAll()}
@@ -518,6 +659,8 @@ async function upload(force){
   btn.disabled=false;
 }
 $("saveBtn").addEventListener("click",()=>upload(false));
+$("listsGo").addEventListener("click",async()=>{if(!book)return;const b=$("listsGo");b.disabled=true;
+  try{await updateLists(book);$("vLists").hidden=true;await upload(false)}catch(e){info("Mise à jour impossible : "+e.message)}b.disabled=false});
 $("migrGo").addEventListener("click",async()=>{if(!book)return;migrateBook(book,bud);$("vMigr").hidden=true;markDirty();renderAll();await upload(false);if(!dirty)resetHist()});
 $("undoBtn").addEventListener("click",undo);
 document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!e.target.closest("input,select,textarea")&&book){e.preventDefault();undo()}});
@@ -617,7 +760,7 @@ async function start(){
   openYear();
 }
 async function openYear(){
-  book=null;item=null;$("vMigr").hidden=true;$("app").hidden=true;$("months").hidden=true;$("savebar").hidden=true;$("vInbox").hidden=true;$("vShare").hidden=true;
+  book=null;item=null;$("vMigr").hidden=true;$("vLists").hidden=true;$("app").hidden=true;$("months").hidden=true;$("sav").hidden=true;$("savebar").hidden=true;$("vInbox").hidden=true;$("vShare").hidden=true;
   const id=ls.get(IK());
   if(ls.get("bud.shared")){if(id)openItem(id);else{show("vActions");info(`Le budget ${YEAR} n'a pas encore été partagé avec vous.`)}return}
   if(await fromFolder())return;if(id)openItem(id);else{show("vPick","vActions");search($("q").value)}
@@ -639,8 +782,10 @@ function renderSummary(){
   const md=monthDeps(),d=md.reduce((s,x)=>s+(+x.prix||0),0);
   const rowOf=n=>LBL().findIndex(l=>l.toLowerCase()===n),val=i=>rev.statut[i]==="Validé";
   const cum=k=>k<0?null:MOIS.reduce((s,_,i)=>s+(val(i)?(bud["r"+k][i]||0):0),0);
-  const pel=cum(rowOf("pel")),vk=rowOf("voyage"),voy=vk<0?null:cum(vk)-deps.filter(x=>x.categorie==="Projet Voyage").reduce((s,x)=>s+(+x.prix||0),0);
-  $("kPelBox").hidden=pel===null;$("kVoyBox").hidden=voy===null;if(pel!==null)$("kPel").textContent=eur(pel);if(voy!==null){$("kVoy").textContent=eur(voy);$("kVoy").className=voy<0?"neg":""}
+  /* cumul du budget des mois « Validé », moins les dépenses saisies dans la catégorie correspondante (même calcul que l'épargne réelle du Dashboard) */
+  const spent=cats=>deps.filter(x=>cats.includes(x.categorie)).reduce((s,x)=>s+(+x.prix||0),0);
+  for(const [box,el,row,cats] of [["kVoyBox","kVoy","voyage",["Projet Voyage","Voyage"]],["kPelBox","kPel","pel",["PEL"]],["kEpaBox","kEpa","epargne",["Épargne","Epargne"]]]){
+    const c=cum(rowOf(row)),v=c===null?null:c-spent(cats);$(box).hidden=v===null;if(v!==null){$(el).textContent=eur(v);$(el).className=v<0?"neg":""}}
   $("kRev").textContent=eur(r);$("kBud").textContent=eur(b);$("kDep").textContent=eur(d);$("kRest").textContent=eur(r-b);$("kRest").className=r-b<0?"neg":"";
   const by={};md.forEach(x=>by[x.categorie]=(by[x.categorie]||0)+(+x.prix||0));
   const rows=Object.entries(by).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...rows.map(r=>r[1]));
