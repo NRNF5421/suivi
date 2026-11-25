@@ -416,18 +416,21 @@ async function search(q){
 const FOLDER="Documents/Suivi-Budget";
 let folderId=null;
 async function folderFiles(){
-  const r=await graph(`/me/drive/root:/${FOLDER.split("/").map(encodeURIComponent).join("/")}`+":?$expand=children($top=200)");
-  if(!r.ok)return null;const j=await r.json();folderId=j.id;return (j.children||[]).filter(f=>f.file&&/\.xlsm$/i.test(f.name));
+  const r=await graph(`/me/drive/root:/${FOLDER.split("/").map(encodeURIComponent).join("/")}`);
+  if(!r.ok)return null;folderId=(await r.json()).id;
+  const c=await graph(`/me/drive/items/${encodeURIComponent(folderId)}/children?$top=200`);
+  if(!c.ok)return null;return (await c.json()).value.filter(f=>f.file&&/\.xlsm$/i.test(f.name));
 }
 const fileFor=(xl,y)=>xl.find(f=>f.name.toLowerCase()===fname(y).toLowerCase())||xl.find(f=>/budget/i.test(f.name)&&f.name.includes(String(y)));
 async function fromFolder(){
   info("Recherche dans OneDrive › "+FOLDER.replace("/"," › ")+"…");
-  try{const xl=await folderFiles();if(!xl)return false;
-    const f=fileFor(xl,YEAR);
-    if(f){ls.set(IK(),f.id);openItem(f.id);return true}
-    const prev=YEAR-1;if(fileFor(xl,prev)){showCreate(prev);return true}
+  const prev=YEAR-1,known=!ls.get(IK())&&ls.get("bud.item."+prev);
+  try{const xl=await folderFiles();
+    if(xl){const f=fileFor(xl,YEAR);if(f){ls.set(IK(),f.id);openItem(f.id);return true}
+      if(fileFor(xl,prev)){showCreate(prev);return true}}
+    if(known){showCreate(prev);return true}
     return false;
-  }catch(e){if(e.quiet)return true;return false}
+  }catch(e){if(e.quiet)return true;if(known){showCreate(prev);return true}return false}
 }
 function showCreate(from){
   show("vActions","vCreate");info("");$("crTitle").innerHTML=`<b>${fname(YEAR)}</b> n'existe pas encore dans ${esc(FOLDER.replace("/"," › "))}. Créez-le à partir du budget ${from} :`;
@@ -435,8 +438,10 @@ function showCreate(from){
 }
 async function createYear(from){
   const btn=$("crGo");btn.disabled=true;info(`Création de ${fname(YEAR)}…`);
-  try{const xl=await folderFiles();const src=xl&&fileFor(xl,from);if(!src)throw new Error(`fichier ${from} introuvable`);
-    const m=await (await graph(`/me/drive/items/${encodeURIComponent(src.id)}`)).json();
+  try{let srcId=null;try{const xl=await folderFiles();const f=xl&&fileFor(xl,from);if(f)srcId=f.id}catch(e){if(e.quiet)throw e}
+    srcId=srcId||ls.get("bud.item."+from);if(!srcId)throw new Error(`fichier ${from} introuvable`);
+    const mr=await graph(ip(srcId));if(!mr.ok)throw new Error(`fichier ${from} illisible (erreur ${mr.status})`);
+    const m=await mr.json();const parent=m.parentReference?.id||folderId;if(!parent)throw new Error("dossier introuvable");
     const B=await loadBook(await (await fetch(m["@microsoft.graph.downloadUrl"])).arrayBuffer());
     const z=()=>Array(12).fill(null),keepRev=$("crRev").checked,keepBud=$("crBud").checked;
     const nRev={e1:keepRev?[...B.rev.e1]:z(),e2:keepRev?[...B.rev.e2]:z(),autres:keepRev?[...B.rev.autres]:z(),statut:Array(12).fill("Prévision")};
@@ -444,8 +449,8 @@ async function createYear(from){
     try{B.X.dash=setCell(B.X.dash,"C12","Janvier")}catch{}
     if(YEAR>=2027&&needsMigration(B))migrateBook(B,nBud);
     const blob=await buildBook(B,nRev,nBud,[]);
-    const r=await graph(`/me/drive/items/${encodeURIComponent(folderId)}:/${encodeURIComponent(fname(YEAR))}:/content?@microsoft.graph.conflictBehavior=fail`,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:blob});
-    if(r.status===409)throw new Error("un fichier de ce nom existe déjà");if(!r.ok)throw new Error("erreur "+r.status);
+    const r=await graph(`/me/drive/items/${encodeURIComponent(parent)}:/${encodeURIComponent(fname(YEAR))}:/content?@microsoft.graph.conflictBehavior=fail`,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:blob});
+    if(r.status===409){const ex=await folderFiles().catch(()=>null);const f=ex&&fileFor(ex,YEAR);if(f){ls.set(IK(),f.id);await openItem(f.id);btn.disabled=false;return}throw new Error("un fichier de ce nom existe déjà")}if(!r.ok)throw new Error("erreur "+r.status);
     const it=await r.json();ls.set(IK(),it.id);await openItem(it.id);setStatus(`Budget ${YEAR} créé dans OneDrive.`);
   }catch(e){if(!e.quiet)info("Création impossible : "+e.message)}
   btn.disabled=false;
